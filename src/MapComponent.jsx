@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { calculatePath } from './pathfinding.js';
+import { MAP_CONFIG } from './mapConfig.js';
 
-// Fix for default marker icons in React Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
 	iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -11,7 +11,6 @@ L.Icon.Default.mergeOptions({
 	shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Helper component to track mouse coordinates on the map
 function MouseCoordinateTracker({ setCoords }) {
 	useMapEvents({
 		mousemove(e) {
@@ -28,10 +27,9 @@ function MouseCoordinateTracker({ setCoords }) {
 }
 
 export default function MapComponent() {
-	const mapCenter = [25.7617, -80.1918];
 	const [mouseCoords, setMouseCoords] = useState(null);
 
-	// Multiple protected no-travel zones
+	// Protected areas including the complex Terminal shape
 	const mockProtectedAreas = [
 		[
 			[25.7813, -80.1801],
@@ -47,17 +45,13 @@ export default function MapComponent() {
 		]
 	];
 
-	const boatPosition = [25.74, -80.17];
-	const portPosition = [25.82, -80.15];
-
-	// Calculate safe path avoiding all protected area polygons
-	const computedPath = calculatePath(boatPosition, portPosition, mockProtectedAreas);
+	const computedPath = calculatePath(MAP_CONFIG.boatPosition, MAP_CONFIG.portPosition, mockProtectedAreas);
 
 	return (
 		<div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
 			<MapContainer
-				center={mapCenter}
-				zoom={12}
+				center={MAP_CONFIG.mapCenter}
+				zoom={MAP_CONFIG.defaultZoom}
 				style={{ width: '100%', height: '100%' }}
 			>
 				<MouseCoordinateTracker setCoords={setMouseCoords} />
@@ -67,33 +61,30 @@ export default function MapComponent() {
 					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 				/>
 
-				{/* Render all Protected Area Polygons */}
 				{mockProtectedAreas.map((polygonCoords, index) => (
 					<Polygon
 						key={index}
 						positions={polygonCoords}
 						pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.4 }}
 					>
-						<Popup>Protected No-Travel Zone {index + 1}</Popup>
+						<Popup>Protected Zone {index + 1}</Popup>
 					</Polygon>
 				))}
 
-				{/* Calculated Safe Path Polyline */}
 				<Polyline
 					positions={computedPath}
 					pathOptions={{ color: 'blue', weight: 4, dashArray: '5, 5' }}
 				/>
 
-				<Marker position={boatPosition}>
+				<Marker position={MAP_CONFIG.boatPosition}>
 					<Popup>Boat Start Position</Popup>
 				</Marker>
 
-				<Marker position={portPosition}>
+				<Marker position={MAP_CONFIG.portPosition}>
 					<Popup>Destination Port / Safe Anchor</Popup>
 				</Marker>
 			</MapContainer>
 
-			{/* Floating Coordinate Display Box */}
 			<div style={{
 				position: 'absolute',
 				bottom: '20px',
