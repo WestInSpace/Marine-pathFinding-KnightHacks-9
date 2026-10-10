@@ -55,7 +55,7 @@ export default function MapComponent() {
                     <Polygon
                         key={area.id}
                         positions={area.coordinates}
-                        pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.4 }}
+                        pathOptions={{ color: area.color, fillColor: area.color, fillOpacity: 0.4 }}
                     >
                         <Popup>{area.name}</Popup>
                     </Polygon>

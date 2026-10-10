@@ -1,9 +1,13 @@
-// src/obstaclesConfig.js
+//Color key:
+const reefColor = '#2B9480';
+const landColor = '#836539';
+const restrictedColor = '#FF2244';
 
 export const PROTECTED_AREAS = [
     {
-        id: 'reef-zone-1',
+        id: 'land-zone-1',
         name: 'Port of Miami - land',
+		color: landColor,
         coordinates: [
             [25.7813, -80.1801],
 			[25.7665, -80.1450],
@@ -13,8 +17,9 @@ export const PROTECTED_AREAS = [
         ]
     },
     {
-        id: 'terminal-sfct-2',
+        id: 'land-zone-2',
         name: 'Jungle Island - land',
+		color: landColor,
         coordinates: [
             [25.7875, -80.1794],
             [25.7879, -80.1775],
