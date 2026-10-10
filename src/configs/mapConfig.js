@@ -5,7 +5,7 @@ export const MAP_CONFIG = {
     minLat: 25.70,
     maxLat: 25.95,
     minLon: -80.35,
-    maxLon: -80.10,
+    maxLon: -80,
 
     // Pathfinding & Grid parameters
     gridSize: 120,             // Higher resolution for tighter, more efficient paths, but laggy or slower rendering
