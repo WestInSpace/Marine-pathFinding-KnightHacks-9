@@ -14,18 +14,26 @@ L.Icon.Default.mergeOptions({
 export default function MapComponent() {
 	const mapCenter = [25.7617, -80.1918];
 
-	const mockReefPolygon = [
-		[25.78, -80.20],
-		[25.79, -80.18],
-		[25.77, -80.17],
-		[25.76, -80.19]
+	// Multiple protected no-travel zones
+	const mockProtectedAreas = [
+		[
+			[25.78, -80.20],
+			[25.79, -80.18],
+			[25.77, -80.17],
+			[25.76, -80.19]
+		],
+		[
+			[25.80, -80.22],
+			[25.82, -80.21],
+			[25.80, -80.19]
+		]
 	];
 
 	const boatPosition = [25.72, -80.25];
 	const portPosition = [25.82, -80.15];
 
-	// Calculate safe path avoiding the reef polygon vertices
-	const computedPath = calculatePath(boatPosition, portPosition, mockReefPolygon);
+	// Calculate safe path avoiding all protected area polygons
+	const computedPath = calculatePath(boatPosition, portPosition, mockProtectedAreas);
 
 	return (
 		<div style={{ width: '100vw', height: '100vh' }}>
@@ -34,17 +42,21 @@ export default function MapComponent() {
 				zoom={12}
 				style={{ width: '100%', height: '100%' }}
 			>
-				{/*The Map*/}
 				<TileLayer
 					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 				/>
 
-				{/*Obstacle Polygon*/}
-				<Polygon
-					positions={mockReefPolygon}
-					pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.4 }}
-				/>
+				{/* Render all Protected Area Polygons */}
+				{mockProtectedAreas.map((polygonCoords, index) => (
+					<Polygon
+						key={index}
+						positions={polygonCoords}
+						pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.4 }}
+					>
+						<Popup>Protected No-Travel Zone {index + 1}</Popup>
+					</Polygon>
+				))}
 
 				{/* Calculated Safe Path Polyline */}
 				<Polyline
