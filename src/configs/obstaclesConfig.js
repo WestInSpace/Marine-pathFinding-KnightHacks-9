@@ -1,4 +1,5 @@
 import { FLORIDA_REEFS } from './reefsConfig.js';
+import { FLORIDA_LAND } from './landConfig.js';
 
 //Color key:
 const reefColor = '#2B9480';
@@ -175,5 +176,7 @@ export const PROTECTED_AREAS = [
 		]
 	},
 	// Major Florida reefs from FWC's Unified Florida Reef Tract map (see reefsConfig.js)
-	...FLORIDA_REEFS.map(reef => ({ ...reef, color: reefColor }))
+	...FLORIDA_REEFS.map(reef => ({ ...reef, color: reefColor })),
+	// Florida mainland, keys and islands from FWC's Florida Shoreline map (see landConfig.js)
+	...FLORIDA_LAND.map(land => ({ ...land, color: landColor }))
 ];

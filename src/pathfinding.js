@@ -1,12 +1,14 @@
 import { MAP_CONFIG } from './configs/mapConfig.js';
 
+// In this file a "polygon" is a list of [pointA, pointB] edges, see buildRowIndex
+
 // Ray-casting algorithm to check if a point is inside any polygon
 function isPointInAnyPolygon(lat, lon, polygons) {
     for (const polygon of polygons) {
         let inside = false;
-        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-            const latI = polygon[i][0], lonI = polygon[i][1];
-            const latJ = polygon[j][0], lonJ = polygon[j][1];
+        for (let i = 0; i < polygon.length; i++) {
+            const latI = polygon[i][0][0], lonI = polygon[i][0][1];
+            const latJ = polygon[i][1][0], lonJ = polygon[i][1][1];
 
             const intersect = ((latI > lat) !== (latJ > lat)) &&
                 (lon < (lonJ - lonI) * (lat - latI) / (latJ - latI) + lonI);
@@ -17,27 +19,11 @@ function isPointInAnyPolygon(lat, lon, polygons) {
     return false;
 }
 
-// Check if line segment intersects any segment of any polygon in the list
-function lineIntersectsAnyPolygon(p1, p2, polygons) {
-    const samples = MAP_CONFIG.samplingResolution;
-    for (let s = 1; s < samples; s++) {
-        const t = s / samples;
-        const sampleLat = p1[0] + (p2[0] - p1[0]) * t;
-        const sampleLon = p1[1] + (p2[1] - p1[1]) * t;
-        if (isPointInAnyPolygon(sampleLat, sampleLon, polygons)) return true;
-    }
-
-    return segmentCrossesAnyPolygonEdge(p1, p2, polygons);
-}
-
 // Check if line segment crosses the outline of any polygon in the list
 function segmentCrossesAnyPolygonEdge(p1, p2, polygons) {
     for (const polygon of polygons) {
         for (let i = 0; i < polygon.length; i++) {
-            const a = polygon[i];
-            const b = polygon[(i + 1) % polygon.length];
-
-            if (doLineSegmentsIntersect(p1, p2, a, b)) return true;
+            if (doLineSegmentsIntersect(p1, p2, polygon[i][0], polygon[i][1])) return true;
         }
     }
     return false;
@@ -49,8 +35,8 @@ function doLineSegmentsIntersect(p1, p2, p3, p4) {
     return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
 }
 
-// Smooth path checking against multiple polygons
-function smoothPath(path, polygons) {
+// Smooth path, skipping waypoints wherever the direct line is not blocked
+function smoothPath(path, isLineBlocked) {
     if (path.length <= 2) return path;
 
     const smoothed = [path[0]];
@@ -60,7 +46,7 @@ function smoothPath(path, polygons) {
         let furthestValidIndex = currentIndex + 1;
 
         for (let j = path.length - 1; j > currentIndex + 1; j--) {
-            if (!lineIntersectsAnyPolygon(path[currentIndex], path[j], polygons)) {
+            if (!isLineBlocked(path[currentIndex], path[j])) {
                 furthestValidIndex = j;
                 break;
             }
@@ -90,15 +76,88 @@ function searchBounds(start, end) {
     };
 }
 
-export function calculatePath(startLatLon, endLatLon, allPolygons) {
-    const { gridSize, subSamplingOffset } = MAP_CONFIG;
-    const { minLat, maxLat, minLon, maxLon } = searchBounds(startLatLon, endLatLon);
+// Fallback search area: every area on the map plus the route, for trips around a whole land mass
+function everythingBounds(start, end, polygons) {
+    let minLat = Math.min(start[0], end[0]), maxLat = Math.max(start[0], end[0]);
+    let minLon = Math.min(start[1], end[1]), maxLon = Math.max(start[1], end[1]);
+    for (const polygon of polygons) {
+        for (const [lat, lon] of polygon) {
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lon < minLon) minLon = lon;
+            if (lon > maxLon) maxLon = lon;
+        }
+    }
+    const pad = MAP_CONFIG.minRoutePadding;
+    return { minLat: minLat - pad, maxLat: maxLat + pad, minLon: minLon - pad, maxLon: maxLon + pad };
+}
 
-    // Polygons entirely outside the search area cannot block the route, skip them for speed
-    const obstaclesPolygons = allPolygons.filter(polygon =>
-        polygon.some(([lat]) => lat >= minLat) && polygon.some(([lat]) => lat <= maxLat) &&
-        polygon.some(([, lon]) => lon >= minLon) && polygon.some(([, lon]) => lon <= maxLon)
-    );
+// Sorts polygon edges into the grid rows they pass through, so a check at one latitude only
+// looks at the few edges near it. Without this a coastline's thousands of edges are far too slow.
+// rows[y] is a list of polygons, each holding only its edges in row y (plus one row of margin).
+function buildRowIndex(polygons, minLat, minLon, cellLatSize, cellLonSize, gridSize) {
+    const rows = Array.from({ length: gridSize }, () => []);
+
+    for (const polygon of polygons) {
+        const edgesByRow = new Map();
+        for (let i = 0; i < polygon.length; i++) {
+            const a = polygon[i];
+            const b = polygon[(i + 1) % polygon.length];
+
+            // Ray-casting looks east, so edges entirely west of the search area can never be hit
+            if (Math.max(a[1], b[1]) < minLon - cellLonSize) continue;
+
+            const firstRow = Math.max(0, Math.floor((Math.min(a[0], b[0]) - minLat) / cellLatSize) - 1);
+            const lastRow = Math.min(gridSize - 1, Math.floor((Math.max(a[0], b[0]) - minLat) / cellLatSize) + 1);
+            for (let row = firstRow; row <= lastRow; row++) {
+                if (!edgesByRow.has(row)) edgesByRow.set(row, []);
+                edgesByRow.get(row).push([a, b]);
+            }
+        }
+        for (const [row, edges] of edgesByRow) rows[row].push(edges);
+    }
+    return rows;
+}
+
+export function calculatePath(startLatLon, endLatLon, obstaclesPolygons) {
+    return findPath(startLatLon, endLatLon, obstaclesPolygons, searchBounds(startLatLon, endLatLon))
+        // No way through nearby (e.g. the goal is on the far side of a peninsula): search the whole map
+        ?? findPath(startLatLon, endLatLon, obstaclesPolygons, everythingBounds(startLatLon, endLatLon, obstaclesPolygons))
+        ?? [startLatLon, endLatLon];
+}
+
+// A* search on a grid covering the given bounds. Returns null when there is no route.
+function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, minLon, maxLon }) {
+    const { gridSize, subSamplingOffset, samplingResolution } = MAP_CONFIG;
+
+    const cellLatSize = (maxLat - minLat) / gridSize;
+    const cellLonSize = (maxLon - minLon) / gridSize;
+
+    const rows = buildRowIndex(obstaclesPolygons, minLat, minLon, cellLatSize, cellLonSize, gridSize);
+    const rowOf = (lat) => Math.max(0, Math.min(gridSize - 1, Math.floor((lat - minLat) / cellLatSize)));
+
+    const isPointInAnyArea = (lat, lon) => isPointInAnyPolygon(lat, lon, rows[rowOf(lat)]);
+
+    // Check if line segment crosses the outline of any area
+    function segmentCrossesAnyArea(p1, p2) {
+        const lastRow = rowOf(Math.max(p1[0], p2[0]));
+        for (let row = rowOf(Math.min(p1[0], p2[0])); row <= lastRow; row++) {
+            if (segmentCrossesAnyPolygonEdge(p1, p2, rows[row])) return true;
+        }
+        return false;
+    }
+
+    // Check if line segment touches any area
+    function lineIntersectsAnyArea(p1, p2) {
+        for (let s = 1; s < samplingResolution; s++) {
+            const t = s / samplingResolution;
+            const sampleLat = p1[0] + (p2[0] - p1[0]) * t;
+            const sampleLon = p1[1] + (p2[1] - p1[1]) * t;
+            if (isPointInAnyArea(sampleLat, sampleLon)) return true;
+        }
+
+        return segmentCrossesAnyArea(p1, p2);
+    }
 
     function toGrid(lat, lon) {
         const x = Math.floor(((lon - minLon) / (maxLon - minLon)) * gridSize);
@@ -119,13 +178,11 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
     const end = toGrid(endLatLon[0], endLatLon[1]);
 
     const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
-    const cellLatSize = (maxLat - minLat) / gridSize;
-    const cellLonSize = (maxLon - minLon) / gridSize;
 
     for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
             const [cellLat, cellLon] = toLatLon(x, y);
-            let isObstacle = isPointInAnyPolygon(cellLat, cellLon, obstaclesPolygons);
+            let isObstacle = isPointInAnyArea(cellLat, cellLon);
 
             if (!isObstacle) {
                 const subPoints = [
@@ -134,7 +191,7 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
                 ];
 
                 for (const pt of subPoints) {
-                    if (isPointInAnyPolygon(pt[0], pt[1], obstaclesPolygons)) {
+                    if (isPointInAnyArea(pt[0], pt[1])) {
                         isObstacle = true;
                         break;
                     }
@@ -160,8 +217,10 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
     // The start node sits at the real start position, every other node at its grid cell
     const nodeLatLon = (node) => node.parent ? toLatLon(node.x, node.y) : startLatLon;
 
-    // A start placed inside an area is allowed to cross its outline once to get out
-    const startInsideArea = isPointInAnyPolygon(startLatLon[0], startLatLon[1], obstaclesPolygons);
+    // A start placed inside an area (e.g. a dock on the shoreline) may cross its outline once to get out,
+    // and an end placed inside an area is reached by stepping into its grid cell
+    const startInsideArea = isPointInAnyArea(startLatLon[0], startLatLon[1]);
+    const endInsideArea = isPointInAnyArea(endLatLon[0], endLatLon[1]);
 
     while (openSet.length > 0) {
         openSet.sort((a, b) => a.f - b.f);
@@ -169,7 +228,11 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
 
         const currentLatLon = nodeLatLon(current);
 
-        if (!lineIntersectsAnyPolygon(currentLatLon, endLatLon, obstaclesPolygons)) {
+        const reachedEnd = endInsideArea
+            ? (current.x === end.x && current.y === end.y)
+            : !lineIntersectsAnyArea(currentLatLon, endLatLon);
+
+        if (reachedEnd) {
             let curr = current;
             const rawPath = [];
             while (curr) {
@@ -177,7 +240,7 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
                 curr = curr.parent;
             }
 
-            const smoothed = smoothPath(rawPath, obstaclesPolygons);
+            const smoothed = smoothPath(rawPath, lineIntersectsAnyArea);
 
             // Drop the start point, it is added back below
             smoothed.shift();
@@ -187,7 +250,7 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
                 const last = smoothed[smoothed.length - 1];
                 const previous = smoothed[smoothed.length - 2] ?? startLatLon;
                 const distToGoal = Math.hypot(last[0] - endLatLon[0], last[1] - endLatLon[1]);
-                if (distToGoal >= 0.005 || lineIntersectsAnyPolygon(previous, endLatLon, obstaclesPolygons)) break;
+                if (distToGoal >= 0.005 || lineIntersectsAnyArea(previous, endLatLon)) break;
                 smoothed.pop();
             }
 
@@ -211,7 +274,8 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
 
             // Areas thinner than a grid cell fit between two free cells, so check the step itself
             const leavingArea = startInsideArea && !current.parent;
-            if (!leavingArea && segmentCrossesAnyPolygonEdge(currentLatLon, toLatLon(nx, ny), obstaclesPolygons)) continue;
+            const enteringArea = endInsideArea && nx === end.x && ny === end.y;
+            if (!leavingArea && !enteringArea && segmentCrossesAnyArea(currentLatLon, toLatLon(nx, ny))) continue;
 
             const gScore = current.g + Math.hypot(d.x, d.y);
             const hScore = heuristic({ x: nx, y: ny }, end);
@@ -228,5 +292,5 @@ export function calculatePath(startLatLon, endLatLon, allPolygons) {
         }
     }
 
-    return [startLatLon, endLatLon];
+    return null;
 }
