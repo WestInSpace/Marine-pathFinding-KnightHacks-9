@@ -2,7 +2,9 @@
 import React from 'react';
 import './css/Menu.css';
 
-export default function Menu({ interactionMode, setInteractionMode, hasStart, hasEnd }) {
+export default function Menu({ interactionMode, setInteractionMode, hasStart, hasEnd, onClear }) {
+    const canClear = hasStart || hasEnd;
+
     return (
         <div className="navigation-menu">
             <h3 className="menu-title">Navigation Controls</h3>
@@ -28,12 +30,21 @@ export default function Menu({ interactionMode, setInteractionMode, hasStart, ha
                 >
                     Pan / Drag Map
                 </button>
+
+                {/* Clear Button */}
+                <button
+                    onClick={onClear}
+                    disabled={!canClear}
+                    className="menu-btn clear-btn"
+                >
+                    Clear Points
+                </button>
             </div>
 
             <div className="instruction-box">
-                {interactionMode === 'SET_START' && <p className="instruction-start">👉 Click on the map to set your boat's starting location.</p>}
-                {interactionMode === 'SET_END' && <p className="instruction-end">👉 Click on the map to set your destination port.</p>}
-                {interactionMode === 'DRAG' && <p className="instruction-drag">🗺️ Click and drag to pan around the map freely.</p>}
+                {interactionMode === 'SET_START' && <p className="instruction-start"> Click on the map to set your boat's starting location.</p>}
+                {interactionMode === 'SET_END' && <p className="instruction-end"> Click on the map to set your destination port.</p>}
+                {interactionMode === 'DRAG' && <p className="instruction-drag"> Click and drag to pan around the map freely.</p>}
             </div>
         </div>
     );
