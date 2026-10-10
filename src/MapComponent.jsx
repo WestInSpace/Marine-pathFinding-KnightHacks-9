@@ -8,11 +8,34 @@ import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
 import Menu from './Menu.jsx';
 import './css/MapDisplay.css';
 
+/*
+//Default Icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+*/
+
+// Create a custom blue icon for the start/boat marker
+const blueIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+// Create a custom green icon for the end/port marker
+const greenIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
 });
 
 function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition }) {
@@ -51,6 +74,11 @@ export default function MapDisplay() {
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
 
+    const handleClearPoints = () => {
+        setBoatPosition(null);
+        setPortPosition(null);
+    };
+
     const obstaclePolygons = PROTECTED_AREAS.map(area => area.coordinates);
 
     const computedPath = (boatPosition && portPosition)
@@ -64,6 +92,7 @@ export default function MapDisplay() {
                 setInteractionMode={setInteractionMode}
                 hasStart={!!boatPosition}
                 hasEnd={!!portPosition}
+                onClear={handleClearPoints}
             />
 
             <MapContainer
@@ -104,14 +133,16 @@ export default function MapDisplay() {
                     />
                 )}
 
+                {/* Start Marker (Default Blue) */}
                 {boatPosition && (
-                    <Marker position={boatPosition}>
+                    <Marker position={boatPosition} icon ={blueIcon}>
                         <Popup>Boat Start Position</Popup>
                     </Marker>
                 )}
 
+                {/* End Marker (Custom Green) */}
                 {portPosition && (
-                    <Marker position={portPosition}>
+                    <Marker position={portPosition} icon={greenIcon}>
                         <Popup>Destination Port / Safe Anchor</Popup>
                     </Marker>
                 )}
