@@ -1,4 +1,4 @@
-import { MAP_CONFIG } from './mapConfig.js';
+import { MAP_CONFIG } from './configs/mapConfig.js';
 
 // Ray-casting algorithm to check if a point is inside any polygon
 function isPointInAnyPolygon(lat, lon, polygons) {

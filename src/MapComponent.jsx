@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { calculatePath } from './pathfinding.js';
-import { MAP_CONFIG } from './mapConfig.js';
-import { PROTECTED_AREAS } from './obstaclesConfig.js';
+import { MAP_CONFIG } from './configs/mapConfig.js';
+import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
