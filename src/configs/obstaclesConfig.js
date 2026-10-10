@@ -2,7 +2,7 @@
 const reefColor = '#2B9480';
 const landColor = '#836539';
 const restrictedColor = '#FF2244';
-const hazardColor = '#FF0000';
+const hazardColor = '#880000';
 
 export const PROTECTED_AREAS = [
 	{
