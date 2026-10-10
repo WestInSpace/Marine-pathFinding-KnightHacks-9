@@ -1,10 +1,10 @@
 import React from 'react';
-import MapComponent from './MapComponent';
+import MapDisplay from './MapDisplay';
 
 export default function App() {
 	return (
 		<div>
-			<MapComponent />
+			<MapDisplay />
 		</div>
 	);
 }
