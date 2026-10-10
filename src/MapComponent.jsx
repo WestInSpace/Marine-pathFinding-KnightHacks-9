@@ -1,6 +1,7 @@
 import React from 'react';
-import { MapContainer, TileLayer, Polygon, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
+import { calculatePath } from './pathfinding.js';
 
 // Fix for default marker icons in React Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -23,6 +24,9 @@ export default function MapComponent() {
 	const boatPosition = [25.72, -80.25];
 	const portPosition = [25.82, -80.15];
 
+	// Calculate safe path avoiding the reef polygon vertices
+	const computedPath = calculatePath(boatPosition, portPosition, mockReefPolygon);
+
 	return (
 		<div style={{ width: '100vw', height: '100vh' }}>
 			<MapContainer
@@ -30,14 +34,22 @@ export default function MapComponent() {
 				zoom={12}
 				style={{ width: '100%', height: '100%' }}
 			>
+				{/*The Map*/}
 				<TileLayer
 					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 				/>
 
+				{/*Obstacle Polygon*/}
 				<Polygon
 					positions={mockReefPolygon}
 					pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.4 }}
+				/>
+
+				{/* Calculated Safe Path Polyline */}
+				<Polyline
+					positions={computedPath}
+					pathOptions={{ color: 'blue', weight: 4, dashArray: '5, 5' }}
 				/>
 
 				<Marker position={boatPosition}>
