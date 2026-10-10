@@ -1,11 +1,13 @@
 // src/MapDisplay.jsx
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Polygon, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useMemo, useState } from 'react';
+import { MapContainer, TileLayer, Polyline, useMapEvents } from 'react-leaflet';
 import { calculatePath } from './pathfinding.js';
+import { toAreas } from './mapData.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
 import Menu from './Menu.jsx';
+import Areas from './Areas.jsx';
+import Markers from './Markers.jsx';
 import Animation from './Animation.jsx';
 import './css/MapDisplay.css';
 
@@ -19,25 +21,9 @@ L.Icon.Default.mergeOptions({
 });
 */
 
-// Create a custom blue icon for the start/boat marker
-const blueIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
-// Create a custom green icon for the end/port marker
-const greenIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
+// Validated once: the same areas are drawn on the map and avoided by pathfinding
+const AREAS = toAreas(PROTECTED_AREAS);
+const obstaclePolygons = AREAS.map(area => area.coordinates);
 
 function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, isAnimating }) {
     useMapEvents({
@@ -83,11 +69,16 @@ export default function MapDisplay() {
         setPortPosition(null);
     };
 
-    const obstaclePolygons = PROTECTED_AREAS.map(area => area.coordinates);
-
-    const computedPath = (boatPosition && portPosition)
+    // Memoized so the path is not recomputed on every mouse move
+    const computedPath = useMemo(() => (boatPosition && portPosition)
         ? calculatePath(boatPosition, portPosition, obstaclePolygons)
-        : [];
+        : [], [boatPosition, portPosition]);
+
+    // Start marker is hidden while animating (the Animation component shows the boat instead)
+    const routePoints = [
+        boatPosition && !isAnimating && { id: 'start', name: 'Boat Start Position', color: 'blue', position: boatPosition },
+        portPosition && { id: 'end', name: 'Destination Port / Safe Anchor', color: 'green', position: portPosition },
+    ].filter(Boolean);
 
     return (
         <div className="map-display-container">
@@ -120,19 +111,8 @@ export default function MapDisplay() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {PROTECTED_AREAS.map((area) => (
-                    <Polygon
-                        key={area.id}
-                        positions={area.coordinates}
-                        pathOptions={{ 
-                            color: area.color, 
-                            fillColor: area.color, 
-                            fillOpacity: 0.4 
-                        }}
-                    >
-                        <Popup>{area.name}</Popup>
-                    </Polygon>
-                ))}
+                {/* Dataset areas (edit configs/obstaclesConfig.js to add areas) */}
+                <Areas areas={AREAS} />
 
                 {computedPath.length > 0 && (
                     <Polyline
@@ -141,12 +121,8 @@ export default function MapDisplay() {
                     />
                 )}
 
-                {/* Static Start Marker (Shows when NOT animating) */}
-                {boatPosition && !isAnimating && (
-                    <Marker position={boatPosition} icon={blueIcon}>
-                        <Popup>Boat Start Position</Popup>
-                    </Marker>
-                )}
+                {/* Start / End markers */}
+                <Markers points={routePoints} />
 
                 {/* Animated Boat Component (Shows ONLY when animating) */}
                 <Animation
@@ -154,13 +130,6 @@ export default function MapDisplay() {
                     isAnimating={isAnimating}
                     onAnimationComplete={() => setIsAnimating(false)}
                 />
-
-                {/* End Marker (Custom Green) */}
-                {portPosition && (
-                    <Marker position={portPosition} icon={greenIcon}>
-                        <Popup>Destination Port / Safe Anchor</Popup>
-                    </Marker>
-                )}
             </MapContainer>
 
             <div className="coordinate-overlay">

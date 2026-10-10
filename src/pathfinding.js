@@ -27,6 +27,11 @@ function lineIntersectsAnyPolygon(p1, p2, polygons) {
         if (isPointInAnyPolygon(sampleLat, sampleLon, polygons)) return true;
     }
 
+    return segmentCrossesAnyPolygonEdge(p1, p2, polygons);
+}
+
+// Check if line segment crosses the outline of any polygon in the list
+function segmentCrossesAnyPolygonEdge(p1, p2, polygons) {
     for (const polygon of polygons) {
         for (let i = 0; i < polygon.length; i++) {
             const a = polygon[i];
@@ -68,8 +73,32 @@ function smoothPath(path, polygons) {
     return smoothed;
 }
 
-export function calculatePath(startLatLon, endLatLon, obstaclesPolygons) {
-    const { minLat, maxLat, minLon, maxLon, gridSize, subSamplingOffset } = MAP_CONFIG;
+// Area the grid covers: the configured box when the route fits inside it,
+// otherwise a padded box around the route so pathfinding works anywhere on the map
+function searchBounds(start, end) {
+    const { minLat, maxLat, minLon, maxLon, routePadding, minRoutePadding } = MAP_CONFIG;
+    const inside = ([lat, lon]) => lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+    if (inside(start) && inside(end)) return { minLat, maxLat, minLon, maxLon };
+
+    const padLat = Math.max(Math.abs(start[0] - end[0]) * routePadding, minRoutePadding);
+    const padLon = Math.max(Math.abs(start[1] - end[1]) * routePadding, minRoutePadding);
+    return {
+        minLat: Math.min(start[0], end[0]) - padLat,
+        maxLat: Math.max(start[0], end[0]) + padLat,
+        minLon: Math.min(start[1], end[1]) - padLon,
+        maxLon: Math.max(start[1], end[1]) + padLon
+    };
+}
+
+export function calculatePath(startLatLon, endLatLon, allPolygons) {
+    const { gridSize, subSamplingOffset } = MAP_CONFIG;
+    const { minLat, maxLat, minLon, maxLon } = searchBounds(startLatLon, endLatLon);
+
+    // Polygons entirely outside the search area cannot block the route, skip them for speed
+    const obstaclesPolygons = allPolygons.filter(polygon =>
+        polygon.some(([lat]) => lat >= minLat) && polygon.some(([lat]) => lat <= maxLat) &&
+        polygon.some(([, lon]) => lon >= minLon) && polygon.some(([, lon]) => lon <= maxLon)
+    );
 
     function toGrid(lat, lon) {
         const x = Math.floor(((lon - minLon) / (maxLon - minLon)) * gridSize);
@@ -128,33 +157,41 @@ export function calculatePath(startLatLon, endLatLon, obstaclesPolygons) {
         return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
     }
 
+    // The start node sits at the real start position, every other node at its grid cell
+    const nodeLatLon = (node) => node.parent ? toLatLon(node.x, node.y) : startLatLon;
+
+    // A start placed inside an area is allowed to cross its outline once to get out
+    const startInsideArea = isPointInAnyPolygon(startLatLon[0], startLatLon[1], obstaclesPolygons);
+
     while (openSet.length > 0) {
         openSet.sort((a, b) => a.f - b.f);
         const current = openSet.shift();
 
-        const currentLatLon = toLatLon(current.x, current.y);
+        const currentLatLon = nodeLatLon(current);
 
         if (!lineIntersectsAnyPolygon(currentLatLon, endLatLon, obstaclesPolygons)) {
             let curr = current;
             const rawPath = [];
             while (curr) {
-                rawPath.unshift(toLatLon(curr.x, curr.y));
+                rawPath.unshift(nodeLatLon(curr));
                 curr = curr.parent;
             }
 
             const smoothed = smoothPath(rawPath, obstaclesPolygons);
 
-            if (smoothed.length > 1 && !lineIntersectsAnyPolygon(startLatLon, smoothed[1], obstaclesPolygons)) {
-                smoothed.shift();
+            // Drop the start point, it is added back below
+            smoothed.shift();
+
+            // Drop waypoints right next to the goal, but only while the shortcut stays clear of every area
+            while (smoothed.length > 0) {
+                const last = smoothed[smoothed.length - 1];
+                const previous = smoothed[smoothed.length - 2] ?? startLatLon;
+                const distToGoal = Math.hypot(last[0] - endLatLon[0], last[1] - endLatLon[1]);
+                if (distToGoal >= 0.005 || lineIntersectsAnyPolygon(previous, endLatLon, obstaclesPolygons)) break;
+                smoothed.pop();
             }
 
-            const cleanedSmoothed = smoothed.filter(pt => {
-                const distToGoal = Math.hypot(pt[0] - endLatLon[0], pt[1] - endLatLon[1]);
-                if (distToGoal < 0.005) return false;
-                return true;
-            });
-
-            return [startLatLon, ...cleanedSmoothed, endLatLon];
+            return [startLatLon, ...smoothed, endLatLon];
         }
 
         closedSet.add(`${current.x},${current.y}`);
@@ -171,6 +208,10 @@ export function calculatePath(startLatLon, endLatLon, obstaclesPolygons) {
             if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) continue;
             if (grid[ny][nx] === 1) continue;
             if (closedSet.has(`${nx},${ny}`)) continue;
+
+            // Areas thinner than a grid cell fit between two free cells, so check the step itself
+            const leavingArea = startInsideArea && !current.parent;
+            if (!leavingArea && segmentCrossesAnyPolygonEdge(currentLatLon, toLatLon(nx, ny), obstaclesPolygons)) continue;
 
             const gScore = current.g + Math.hypot(d.x, d.y);
             const hScore = heuristic({ x: nx, y: ny }, end);

@@ -7,6 +7,10 @@ export const MAP_CONFIG = {
     minLon: -80.35,
     maxLon: -80,
 
+    // Routes that leave the bounds above get their own grid around the start & end points
+    routePadding: 0.5,         // Extra room around the route to detour in, as a fraction of the route's size
+    minRoutePadding: 0.1,      // Smallest extra room, in degrees (~11 km)
+
     // Pathfinding & Grid parameters
     gridSize: 120,             // Higher resolution for tighter, more efficient paths, but laggy or slower rendering
     samplingResolution: 15,    // Line-of-sight check resolution for smoothing
