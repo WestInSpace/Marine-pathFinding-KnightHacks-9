@@ -2,15 +2,50 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { ANIMATION_CONFIG } from './configs/AnimationConfig.js'; // Adjust path if needed based on your file structure
+import { ANIMATION_CONFIG } from './configs/AnimationConfig.js';
 
+// Standard blue icon for when the boat is stationary at the start
 const blueIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+    iconSize: [37, 61],
+    iconAnchor: [37, 61],
+    shadowSize: [61, 61]
+});
+
+/*
+// Custom ship icon for when the simulation is actively playing
+// (Using an open-source ship/boat marker icon asset)
+const shipIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448609.png', // Clean ship icon asset url, or file path
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16]
+});
+*/
+
+// Create a sharp, reliable ship icon using an SVG embedded in an L.divIcon
+const shipIcon = L.divIcon({
+    className: 'custom-ship-marker',
+    html: `
+        <div style="
+            background-color: #007bff;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            font-size: 16px;
+        ">
+            🚢
+        </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16]
 });
 
 export default function Animation({ computedPath, isAnimating, onAnimationComplete }) {
@@ -22,8 +57,6 @@ export default function Animation({ computedPath, isAnimating, onAnimationComple
 
         let currentSegment = 0;
         let startTime = null;
-
-        // Use the centralized speed configuration
         const segmentDuration = ANIMATION_CONFIG.segmentDuration; 
 
         const animateStep = (timestamp) => {
@@ -63,8 +96,8 @@ export default function Animation({ computedPath, isAnimating, onAnimationComple
     if (!isAnimating || !currentPos) return null;
 
     return (
-        <Marker position={currentPos} icon={blueIcon}>
-            <Popup>🚢 Boat Underway</Popup>
+        <Marker position={currentPos} icon={shipIcon}>
+            <Popup> Boat Underway</Popup>
         </Marker>
     );
 }
