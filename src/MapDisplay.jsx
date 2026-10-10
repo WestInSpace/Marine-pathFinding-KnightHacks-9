@@ -6,6 +6,7 @@ import { calculatePath } from './pathfinding.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
 import Menu from './Menu.jsx';
+import Animation from './Animation.jsx';
 import './css/MapDisplay.css';
 
 /*
@@ -38,9 +39,10 @@ const greenIcon = new L.Icon({
     shadowSize: [41, 41]
 });
 
-function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition }) {
+function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, isAnimating }) {
     useMapEvents({
         click(e) {
+            if (isAnimating) return;
             const latLng = [e.latlng.lat, e.latlng.lng];
             if (interactionMode === 'SET_START') {
                 setBoatPosition(latLng);
@@ -73,8 +75,10 @@ export default function MapDisplay() {
     
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
+    const [isAnimating, setIsAnimating] = useState(false);
 
     const handleClearPoints = () => {
+        setIsAnimating(false);
         setBoatPosition(null);
         setPortPosition(null);
     };
@@ -93,6 +97,9 @@ export default function MapDisplay() {
                 hasStart={!!boatPosition}
                 hasEnd={!!portPosition}
                 onClear={handleClearPoints}
+                onPlayAnimation={() => setIsAnimating(true)}
+                isAnimating={isAnimating}
+                hasPath={computedPath.length > 0}
             />
 
             <MapContainer
@@ -104,6 +111,7 @@ export default function MapDisplay() {
                     interactionMode={interactionMode}
                     setBoatPosition={setBoatPosition}
                     setPortPosition={setPortPosition}
+                    isAnimating={isAnimating}
                 />
                 <MouseCoordinateTracker setCoords={setMouseCoords} />
 
@@ -133,12 +141,19 @@ export default function MapDisplay() {
                     />
                 )}
 
-                {/* Start Marker (Default Blue) */}
-                {boatPosition && (
-                    <Marker position={boatPosition} icon ={blueIcon}>
+                {/* Static Start Marker (Shows when NOT animating) */}
+                {boatPosition && !isAnimating && (
+                    <Marker position={boatPosition} icon={blueIcon}>
                         <Popup>Boat Start Position</Popup>
                     </Marker>
                 )}
+
+                {/* Animated Boat Component (Shows ONLY when animating) */}
+                <Animation
+                    computedPath={computedPath}
+                    isAnimating={isAnimating}
+                    onAnimationComplete={() => setIsAnimating(false)}
+                />
 
                 {/* End Marker (Custom Green) */}
                 {portPosition && (

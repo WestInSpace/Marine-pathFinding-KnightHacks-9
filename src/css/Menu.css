@@ -90,3 +90,15 @@
     cursor: not-allowed;
     opacity: 0.65;
 }
+
+.menu-btn.play-btn {
+    background-color: #ffc107;
+    color: #212529;
+    border-color: #ffb300;
+    margin-top: 4px;
+    font-weight: bold;
+}
+
+.menu-btn.play-btn:hover:not(:disabled) {
+    background-color: #ffb300;
+}
