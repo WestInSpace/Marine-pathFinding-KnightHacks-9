@@ -1,82 +1,86 @@
 // src/Animation.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { ANIMATION_CONFIG } from './configs/AnimationConfig.js';
+import { getBoatIconUrl } from './configs/boatIcons.js';
+import { calculateRouteSegmentDistancesNm } from './routeTimeCalculations.js';
 
-
-// Custom ship icon for when the simulation is actively playing
-// (Using an open-source ship/boat marker icon asset)
-let shipIcon;
-if (ANIMATION_CONFIG.iconUrl) {
-	shipIcon = new L.Icon({
-		iconUrl: ANIMATION_CONFIG.iconUrl, // Clean ship icon asset url, or file path
-		iconSize: [32, 32],
-		iconAnchor: [16, 16],
-		popupAnchor: [0, -16]
-	});
-} else {
-	// Fallback to ship emoji if missing ship path in config file
-	shipIcon = L.divIcon({
-		className: 'custom-ship-marker',
-		html: `
-        <div style="
-            background-color: #007bff;
-            border: 2px solid white;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-            font-size: 16px;
-        ">
-            🚢
-        </div>
-    `,
-		iconSize: [32, 32],
-		iconAnchor: [16, 16],
-		popupAnchor: [0, -16]
-	});
-}
-
-export default function Animation({ computedPath, isAnimating, onAnimationComplete }) {
+export default function Animation({ computedPath, isAnimating, speedKnots, onAnimationComplete }) {
 	const [currentPos, setCurrentPos] = useState(null);
 	const animRef = useRef(null);
+	const speedRef = useRef(speedKnots);
+	const onCompleteRef = useRef(onAnimationComplete);
+	speedRef.current = speedKnots;
+	onCompleteRef.current = onAnimationComplete;
+
+	const segmentDistancesNm = useMemo(
+		() => calculateRouteSegmentDistancesNm(computedPath),
+		[computedPath]
+	);
+	const boatIcon = useMemo(() => new L.Icon({
+		iconUrl: getBoatIconUrl(speedKnots),
+		iconSize: [40, 40],
+		iconAnchor: [20, 26],
+		popupAnchor: [0, -20]
+	}), [speedKnots]);
 
 	useEffect(() => {
-		if (!isAnimating || computedPath.length < 2) return;
+		if (!isAnimating || computedPath.length < 2) {
+			setCurrentPos(null);
+			return;
+		}
 
 		let currentSegment = 0;
-		let startTime = null;
-		const segmentDuration = ANIMATION_CONFIG.segmentDuration;
+		let segmentProgressNm = 0;
+		let previousTimestamp = null;
+		setCurrentPos(computedPath[0]);
 
 		const animateStep = (timestamp) => {
-			if (!startTime) startTime = timestamp;
-			const elapsed = timestamp - startTime;
-			const progress = Math.min(elapsed / segmentDuration, 1);
+			if (previousTimestamp === null) previousTimestamp = timestamp;
+			const elapsedMs = Math.min(timestamp - previousTimestamp, ANIMATION_CONFIG.maxFrameDeltaMs);
+			previousTimestamp = timestamp;
 
-			const p1 = computedPath[currentSegment];
-			const p2 = computedPath[currentSegment + 1];
+			let distanceToMoveNm = speedRef.current > 0
+				? speedRef.current * elapsedMs / 3600000 * ANIMATION_CONFIG.simulationTimeScale
+				: 0;
 
-			const currentLat = p1[0] + (p2[0] - p1[0]) * progress;
-			const currentLon = p1[1] + (p2[1] - p1[1]) * progress;
+			while (currentSegment < segmentDistancesNm.length) {
+				const segmentDistanceNm = segmentDistancesNm[currentSegment];
+				const remainingDistanceNm = segmentDistanceNm - segmentProgressNm;
 
-			setCurrentPos([currentLat, currentLon]);
-
-			if (progress < 1) {
-				animRef.current = requestAnimationFrame(animateStep);
-			} else {
-				currentSegment++;
-				if (currentSegment < computedPath.length - 1) {
-					startTime = null;
-					animRef.current = requestAnimationFrame(animateStep);
-				} else {
-					setCurrentPos(computedPath[computedPath.length - 1]);
-					if (onAnimationComplete) onAnimationComplete();
+				if (remainingDistanceNm <= 0.000000001) {
+					currentSegment++;
+					segmentProgressNm = 0;
+					continue;
 				}
+
+				if (distanceToMoveNm >= remainingDistanceNm) {
+					distanceToMoveNm -= remainingDistanceNm;
+					currentSegment++;
+					segmentProgressNm = 0;
+					setCurrentPos(computedPath[currentSegment]);
+					continue;
+				}
+
+				segmentProgressNm += distanceToMoveNm;
+				const progress = segmentProgressNm / segmentDistanceNm;
+				const start = computedPath[currentSegment];
+				const end = computedPath[currentSegment + 1];
+				setCurrentPos([
+					start[0] + (end[0] - start[0]) * progress,
+					start[1] + (end[1] - start[1]) * progress
+				]);
+				break;
 			}
+
+			if (currentSegment >= segmentDistancesNm.length) {
+				setCurrentPos(computedPath[computedPath.length - 1]);
+				onCompleteRef.current?.();
+				return;
+			}
+
+			animRef.current = requestAnimationFrame(animateStep);
 		};
 
 		animRef.current = requestAnimationFrame(animateStep);
@@ -84,12 +88,12 @@ export default function Animation({ computedPath, isAnimating, onAnimationComple
 		return () => {
 			if (animRef.current) cancelAnimationFrame(animRef.current);
 		};
-	}, [isAnimating, computedPath, onAnimationComplete]);
+	}, [isAnimating, computedPath, segmentDistancesNm]);
 
 	if (!isAnimating || !currentPos) return null;
 
 	return (
-		<Marker position={currentPos} icon={shipIcon}>
+		<Marker position={currentPos} icon={boatIcon}>
 			<Popup> Boat Underway</Popup>
 		</Marker>
 	);

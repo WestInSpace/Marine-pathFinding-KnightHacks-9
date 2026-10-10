@@ -1,5 +1,8 @@
 // src/MapDisplay.jsx
 import React, { useMemo, useState } from 'react';
+import { MapContainer, TileLayer, Polygon, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import React, { useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, useMapEvents } from 'react-leaflet';
 import { calculatePath } from './pathfinding.js';
 import { toAreas } from './mapData.js';
@@ -9,6 +12,7 @@ import Menu from './Menu.jsx';
 import Areas from './Areas.jsx';
 import Markers from './Markers.jsx';
 import Animation from './Animation.jsx';
+import RouteTime from './RouteTime.jsx';
 import './css/MapDisplay.css';
 
 /*
@@ -21,6 +25,27 @@ L.Icon.Default.mergeOptions({
 });
 */
 
+// Create a custom blue icon for the start/boat marker
+const blueIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+// Create a custom green icon for the end/port marker
+const greenIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+const obstaclePolygons = PROTECTED_AREAS.map(area => area.coordinates);
 // Validated once: the same areas are drawn on the map and avoided by pathfinding
 const AREAS = toAreas(PROTECTED_AREAS);
 const obstaclePolygons = AREAS.map(area => area.coordinates);
@@ -62,6 +87,8 @@ export default function MapDisplay() {
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [speedInput, setSpeedInput] = useState('10');
+    const speedKnots = Number(speedInput);
 
     const handleClearPoints = () => {
         setIsAnimating(false);
@@ -69,9 +96,11 @@ export default function MapDisplay() {
         setPortPosition(null);
     };
 
+    const computedPath = useMemo(() => (boatPosition && portPosition)
     // Memoized so the path is not recomputed on every mouse move
     const computedPath = useMemo(() => (boatPosition && portPosition)
         ? calculatePath(boatPosition, portPosition, obstaclePolygons)
+        : [], [boatPosition, portPosition]);
         : [], [boatPosition, portPosition]);
 
     // Start marker is hidden while animating (the Animation component shows the boat instead)
@@ -82,16 +111,23 @@ export default function MapDisplay() {
 
     return (
         <div className="map-display-container">
-            <Menu
-                interactionMode={interactionMode}
-                setInteractionMode={setInteractionMode}
-                hasStart={!!boatPosition}
-                hasEnd={!!portPosition}
-                onClear={handleClearPoints}
-                onPlayAnimation={() => setIsAnimating(true)}
-                isAnimating={isAnimating}
-                hasPath={computedPath.length > 0}
-            />
+            <div className="map-controls-stack">
+                <Menu
+                    interactionMode={interactionMode}
+                    setInteractionMode={setInteractionMode}
+                    hasStart={!!boatPosition}
+                    hasEnd={!!portPosition}
+                    onClear={handleClearPoints}
+                    onPlayAnimation={() => setIsAnimating(true)}
+                    isAnimating={isAnimating}
+                    hasPath={computedPath.length > 0 && speedKnots > 0}
+                />
+                <RouteTime
+                    path={computedPath}
+                    speedInput={speedInput}
+                    onSpeedInputChange={setSpeedInput}
+                />
+            </div>
 
             <MapContainer
                 center={MAP_CONFIG.mapCenter}
@@ -128,6 +164,7 @@ export default function MapDisplay() {
                 <Animation
                     computedPath={computedPath}
                     isAnimating={isAnimating}
+                    speedKnots={speedKnots}
                     onAnimationComplete={() => setIsAnimating(false)}
                 />
             </MapContainer>

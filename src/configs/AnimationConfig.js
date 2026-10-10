@@ -1,7 +1,7 @@
 
 export const ANIMATION_CONFIG = {
-    // Duration in milliseconds per path segment. 
-    // Lower number = faster boat speed; Higher number = slower/smoother boat speed.
-    segmentDuration: 500,
-	iconUrl: '',
+    // Simulated time advances this many times faster than real time.
+    simulationTimeScale: 600,
+    // Limit large frame gaps after a paused/background browser tab.
+    maxFrameDeltaMs: 100,
 };
