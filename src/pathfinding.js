@@ -61,7 +61,6 @@ function smoothPath(path, polygon) {
 }
 
 export function calculatePath(startLatLon, endLatLon, obstaclesPolygon) {
-	console.log("CALCULATE PATH CALLED with:", startLatLon, endLatLon);
 	const minLat = 25.70, maxLat = 25.85;
 	const minLon = -80.30, maxLon = -80.10;
 	const gridSize = 60;
