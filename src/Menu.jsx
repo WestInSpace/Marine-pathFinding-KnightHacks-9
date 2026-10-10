@@ -6,7 +6,7 @@ export default function Menu({ interactionMode, setInteractionMode, hasStart, ha
 		<div style={{
 			position: 'absolute',
 			top: '20px',
-			left: '20px',
+			right: '20px',
 			zIndex: 1000,
 			backgroundColor: 'rgba(255, 255, 255, 0.95)',
 			padding: '16px',
