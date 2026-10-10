@@ -1,0 +1,73 @@
+.navigation-menu {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-family: sans-serif;
+    width: 240px;
+}
+
+.menu-title {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.menu-btn {
+    padding: 10px;
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.menu-btn.active-start {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.menu-btn.active-end {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.menu-btn.active-drag {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.instruction-box {
+    font-size: 13px;
+    color: #666;
+    border-top: 1px solid #eee;
+    padding-top: 8px;
+}
+
+.instruction-start {
+    margin: 0;
+    color: #007bff;
+}
+
+.instruction-end {
+    margin: 0;
+    color: #28a745;
+}
+
+.instruction-drag {
+    margin: 0;
+    color: #6c757d;
+}

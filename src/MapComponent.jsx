@@ -6,6 +6,7 @@ import { calculatePath } from './pathfinding.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
 import Menu from './Menu.jsx';
+import './css/MapDisplay.css';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -14,7 +15,6 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Component to handle click events on the map canvas
 function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition }) {
     useMapEvents({
         click(e) {
@@ -29,7 +29,6 @@ function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition }) 
     return null;
 }
 
-// Component to track live hover coordinates
 function MouseCoordinateTracker({ setCoords }) {
     useMapEvents({
         mousemove(e) {
@@ -49,20 +48,17 @@ export default function MapDisplay() {
     const [mouseCoords, setMouseCoords] = useState(null);
     const [interactionMode, setInteractionMode] = useState('DRAG');
     
-    // Start and end positions start as null until the user clicks to place them
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
 
     const obstaclePolygons = PROTECTED_AREAS.map(area => area.coordinates);
 
-    // Compute path ONLY if both start and end positions have been selected
     const computedPath = (boatPosition && portPosition)
         ? calculatePath(boatPosition, portPosition, obstaclePolygons)
         : [];
 
     return (
-        <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-            {/* Separate UI Menu Component */}
+        <div className="map-display-container">
             <Menu
                 interactionMode={interactionMode}
                 setInteractionMode={setInteractionMode}
@@ -73,7 +69,7 @@ export default function MapDisplay() {
             <MapContainer
                 center={MAP_CONFIG.mapCenter}
                 zoom={MAP_CONFIG.defaultZoom}
-                style={{ width: '100%', height: '100%' }}
+                className="map-container-inner"
             >
                 <MapClickHandler
                     interactionMode={interactionMode}
@@ -87,7 +83,6 @@ export default function MapDisplay() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {/* Render Protected Areas with custom colors */}
                 {PROTECTED_AREAS.map((area) => (
                     <Polygon
                         key={area.id}
@@ -102,7 +97,6 @@ export default function MapDisplay() {
                     </Polygon>
                 ))}
 
-                {/* Render Path Polyline only when computed */}
                 {computedPath.length > 0 && (
                     <Polyline
                         positions={computedPath}
@@ -110,14 +104,12 @@ export default function MapDisplay() {
                     />
                 )}
 
-                {/* Start Marker */}
                 {boatPosition && (
                     <Marker position={boatPosition}>
                         <Popup>Boat Start Position</Popup>
                     </Marker>
                 )}
 
-                {/* End Marker */}
                 {portPosition && (
                     <Marker position={portPosition}>
                         <Popup>Destination Port / Safe Anchor</Popup>
@@ -125,22 +117,7 @@ export default function MapDisplay() {
                 )}
             </MapContainer>
 
-            {/* Floating Coordinate Display Box */}
-            <div style={{
-                position: 'absolute',
-                bottom: '20px',
-                left: '20px',
-                zIndex: 1000,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                padding: '8px 14px',
-                borderRadius: '6px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                color: '#333',
-                pointerEvents: 'none'
-            }}>
+            <div className="coordinate-overlay">
                 {mouseCoords ? (
                     <span>Lat: {mouseCoords.lat}, Lng: {mouseCoords.lng}</span>
                 ) : (
