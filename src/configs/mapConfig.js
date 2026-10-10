@@ -3,12 +3,12 @@
 export const MAP_CONFIG = {
     // Geographical bounds of the simulation grid
     minLat: 25.70,
-    maxLat: 25.85,
-    minLon: -80.30,
+    maxLat: 25.95,
+    minLon: -80.35,
     maxLon: -80.10,
 
     // Pathfinding & Grid parameters
-    gridSize: 60,             // Higher resolution for tighter, more efficient paths, but laggy or slower rendering
+    gridSize: 120,             // Higher resolution for tighter, more efficient paths, but laggy or slower rendering
     samplingResolution: 15,    // Line-of-sight check resolution for smoothing
     subSamplingOffset: 0.2,    // Offset factor to catch thin polygon tips without bloating obstacles
 
