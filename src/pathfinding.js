@@ -87,10 +87,35 @@ export function calculatePath(startLatLon, endLatLon, obstaclesPolygons) {
 
 	const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
 
+	const cellLatSize = (maxLat - minLat) / gridSize;
+    const cellLonSize = (maxLon - minLon) / gridSize;
+
 	for (let y = 0; y < gridSize; y++) {
 		for (let x = 0; x < gridSize; x++) {
 			const [cellLat, cellLon] = toLatLon(x, y);
-			if (isPointInAnyPolygon(cellLat, cellLon, obstaclesPolygons)) {
+
+			// 1. Check the center of the cell
+			let isObstacle = isPointInAnyPolygon(cellLat, cellLon, obstaclesPolygons);
+
+			// 2. If center is clear, sub-sample the 4 corners of the cell 
+			// to catch thin polygon tips or sharp edges that fall between cell centers.
+			if (!isObstacle) {
+				const subPoints = [
+					[cellLat + cellLatSize * 0.3, cellLon + cellLonSize * 0.3],
+					[cellLat + cellLatSize * 0.3, cellLon - cellLonSize * 0.3],
+					[cellLat - cellLatSize * 0.3, cellLon + cellLonSize * 0.3],
+					[cellLat - cellLatSize * 0.3, cellLon - cellLonSize * 0.3]
+				];
+
+				for (const pt of subPoints) {
+					if (isPointInAnyPolygon(pt[0], pt[1], obstaclesPolygons)) {
+						isObstacle = true;
+						break;
+					}
+				}
+			}
+
+			if (isObstacle) {
 				grid[y][x] = 1;
 			}
 		}
