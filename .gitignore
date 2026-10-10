@@ -1,2 +1,5 @@
 #Ignore the devcontainer
 .devcontainer/
+
+#ignore npm dependencies
+node_modules/
