@@ -11,11 +11,13 @@ export default function Menu({
     onPlayAnimation, 
     isAnimating, 
     hasPath,
+    hasExternalPropeller,
+    setHasExternalPropeller,
     draftPointCount,
     onFinishPolygon,
     onCancelPolygon,
     onExportCustomBounds,
-    userPolygonCount
+    userPolygonCount,
 }) {
     const canClear = hasStart || hasEnd;
 
@@ -70,14 +72,14 @@ export default function Menu({
                         <button 
                             onClick={onFinishPolygon}
                             disabled={draftPointCount < 3}
-                            className=""
+                            className="menu-btn"
                         >
                             Finish Polygon
                         </button>
                         <button 
                             onClick={onCancelPolygon}
                             disabled={draftPointCount === 0}
-                            className=""
+                            className="menu-btn"
                         >
                             Cancel
                         </button>
@@ -101,6 +103,17 @@ export default function Menu({
                     Export custom bounds
                 </button>
             </div>
+
+            {/* Decides whether "no external propeller" zones block the route */}
+            <label className="vessel-option">
+                <input
+                    type="checkbox"
+                    checked={hasExternalPropeller}
+                    onChange={(e) => setHasExternalPropeller(e.target.checked)}
+                    disabled={isAnimating}
+                />
+                Vessel uses an external propeller
+            </label>
 
             <div className="instruction-box">
                 {isAnimating && <p style={{ margin: 0, color: '#d39e00', fontWeight: 'bold' }}> Boat underway along computed path...</p>}

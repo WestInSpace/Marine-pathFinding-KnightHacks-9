@@ -1,5 +1,5 @@
 // src/MapDisplay.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     MapContainer,
     TileLayer,
@@ -10,11 +10,14 @@ import {
 } from 'react-leaflet';
 import { calculatePath } from './pathfinding.js';
 import { toAreas } from './mapData.js';
+import { fetchBoatingZones, zoneBlocksVessel } from './boatingZones.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
+import { WILDLIFE_SPOTS } from './configs/wildlifeConfig.js';
 import Menu from './Menu.jsx';
 import Areas from './Areas.jsx';
 import Markers from './Markers.jsx';
+import Wildlife from './Wildlife.jsx';
 import Animation from './Animation.jsx';
 import RouteTime from './RouteTime.jsx';
 import './css/MapDisplay.css';
@@ -76,11 +79,6 @@ export default function MapDisplay() {
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
 
-    const obstaclePolygons = [
-        ...AREAS.map(area => area.coordinates),
-        ...userPolygons.map(area => area.coordinates)
-    ];
-
     const exportCustomBounds = () => {
         const config = {
             version: 1,
@@ -120,6 +118,27 @@ export default function MapDisplay() {
         setPolygonDraft([]);
     };
 
+    // FWC boating restricted areas, loaded once. The map works without them if the request fails.
+    const [zones, setZones] = useState([]);
+    const [hasExternalPropeller, setHasExternalPropeller] = useState(true);
+    useEffect(() => {
+        let cancelled = false;
+        fetchBoatingZones()
+            .then(rawZones => { if (!cancelled) setZones(toAreas(rawZones)); })
+            .catch(error => console.warn('Boating zones unavailable, continuing without them', error));
+        return () => { cancelled = true; };
+    }, []);
+
+    // Static areas, the user's prohibited areas, and only the zones this vessel may not enter
+    const obstacles = useMemo(
+        () => [
+            ...AREAS.map(area => area.coordinates),
+            ...userPolygons.map(area => area.coordinates),
+            ...zones.filter(zone => zoneBlocksVessel(zone, { hasExternalPropeller })).map(zone => zone.coordinates)
+        ],
+        [userPolygons, zones, hasExternalPropeller]
+    );
+
     const handleClearPoints = () => {
         setIsAnimating(false);
         setBoatPosition(null);
@@ -129,9 +148,9 @@ export default function MapDisplay() {
     // Memoized so the path is not recomputed on every mouse move
     const computedPath = useMemo(
         () => (boatPosition && portPosition)
-            ? calculatePath(boatPosition, portPosition, obstaclePolygons)
+            ? calculatePath(boatPosition, portPosition, obstacles)
             : [],
-        [boatPosition, portPosition]
+        [boatPosition, portPosition, obstacles]
     );
 
     // Start marker is hidden while animating (the Animation component shows the boat instead)
@@ -157,6 +176,8 @@ export default function MapDisplay() {
                     onCancelPolygon={() => setPolygonDraft([])}
                     onExportCustomBounds={exportCustomBounds}
                     userPolygonCount={userPolygons.length}
+                    hasExternalPropeller={hasExternalPropeller}
+                    setHasExternalPropeller={setHasExternalPropeller}
                 />
                 <RouteTime
                     path={computedPath}
@@ -210,6 +231,12 @@ export default function MapDisplay() {
                         ))}
                     </>
                 )}
+
+                {/* FWC boating zones: red no entry, orange restricted, yellow speed, grey unclassified */}
+                <Areas areas={zones} />
+
+                {/* Protected wildlife icons, hidden until zoomed in (edit configs/wildlifeConfig.js to add spots) */}
+                <Wildlife spots={WILDLIFE_SPOTS} />
 
                 {computedPath.length > 0 && (
                     <Polyline
