@@ -10,7 +10,7 @@ const hazardColor = '#880000';
 export const PROTECTED_AREAS = [
 
 	//Test Data
-/*
+	/*
 	{
 		id: 'land-zone-1',
 		name: 'Port of Miami',
@@ -178,7 +178,51 @@ export const PROTECTED_AREAS = [
 
 		]
 	},
-*/
+	*/
+	{
+		id: 'restricted-zone-1',
+		name: 'Naval Air Station Key West Truman Annex',
+		color: restrictedColor,
+		coordinates: [
+			[24.5453, -81.8083],
+			[24.5439, -81.8085],
+			[24.5434, -81.8056],
+			[24.5442, -81.8055],
+			[24.5439, -81.8048],
+			[24.5439, -81.8048],
+			[24.5440, -81.8039],
+			[24.5443, -81.8037],
+			[24.5445, -81.8033],
+			[24.5447, -81.8031],
+			[24.5450, -81.8032],
+			[24.5453, -81.8027]
+		]
+	},
+	{
+		id: 'hazard-zone-1',
+		name: 'Oil-Spill-1',
+		color: hazardColor,
+		coordinates: [
+			[27.0045, -80.7972],
+			[27.0140, -80.8182],
+			[27.0259, -80.8240],
+			[27.0265, -80.8563],
+			[27.0281, -80.8659],
+			[27.0174, -80.8848],
+			[27.0140, -80.9009],
+			[26.9950, -80.9177],
+			[26.9745, -80.9222],
+			[26.9534, -80.9191],
+			[26.9356, -80.9126],
+			[26.9120, -80.8875],
+			[26.9163, -80.8724],
+			[26.9215, -80.8436],
+			[26.9329, -80.8216],
+			[26.9460, -80.8130],
+			[26.9748, -80.8092]
+		]
+	},
+
 	//Real Data
 	// Major Florida reefs from FWC's Unified Florida Reef Tract map (see reefsConfig.js)
 	...FLORIDA_REEFS.map(reef => ({ ...reef, color: reefColor })),
