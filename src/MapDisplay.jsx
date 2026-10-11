@@ -1,5 +1,5 @@
 // src/MapDisplay.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     MapContainer,
     TileLayer,
@@ -58,8 +58,6 @@ function MouseCoordinateTracker({ setCoords }) {
     return null;
 }
 
-
-
 export default function MapDisplay() {
     const [mouseCoords, setMouseCoords] = useState(null);
     const [interactionMode, setInteractionMode] = useState('DRAG');
@@ -79,6 +77,9 @@ export default function MapDisplay() {
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
 
+    // Reference for the hidden file input element
+    const fileInputRef = useRef(null);
+
     const exportCustomBounds = () => {
         const config = {
             version: 1,
@@ -96,6 +97,36 @@ export default function MapDisplay() {
         link.click();
 
         URL.revokeObjectURL(url);
+    };
+
+    const importCustomBounds = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                // Support both structured config objects ({ areas: [...] }) and direct arrays ([...])
+                const incomingAreas = Array.isArray(parsed) 
+                    ? parsed 
+                    : (parsed.areas && Array.isArray(parsed.areas) ? parsed.areas : []);
+                
+                if (incomingAreas.length === 0) {
+                    window.alert('No valid areas found in the imported file.');
+                    return;
+                }
+
+                setUserPolygons(current => [...current, ...incomingAreas]);
+                window.alert(`Successfully imported ${incomingAreas.length} custom zone(s)!`);
+            } catch (error) {
+                console.error('Failed to parse JSON file:', error);
+                window.alert('Invalid JSON file format.');
+            }
+            // Reset input value so the same file can be selected again if needed
+            event.target.value = '';
+        };
+        reader.readAsText(file);
     };
 
     const finishPolygon = () => {
@@ -161,6 +192,15 @@ export default function MapDisplay() {
 
     return (
         <div className="map-display-container">
+            {/* Hidden file input for importing bounds */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept=".json"
+                onChange={importCustomBounds}
+            />
+
             <div className="map-controls-stack">
                 <Menu
                     interactionMode={interactionMode}
@@ -175,6 +215,7 @@ export default function MapDisplay() {
                     onFinishPolygon={finishPolygon}
                     onCancelPolygon={() => setPolygonDraft([])}
                     onExportCustomBounds={exportCustomBounds}
+                    onImportCustomBounds={() => fileInputRef.current.click()}
                     userPolygonCount={userPolygons.length}
                     hasExternalPropeller={hasExternalPropeller}
                     setHasExternalPropeller={setHasExternalPropeller}

@@ -17,6 +17,7 @@ export default function Menu({
     onFinishPolygon,
     onCancelPolygon,
     onExportCustomBounds,
+    onImportCustomBounds,
     userPolygonCount,
 }) {
     const canClear = hasStart || hasEnd;
@@ -101,6 +102,14 @@ export default function Menu({
                     className="menu-btn"
                 >
                     Export custom bounds
+                </button>
+
+                <button
+                    onClick={onImportCustomBounds}
+                    disabled={isAnimating}
+                    className="menu-btn"
+                >
+                    Import custom bounds
                 </button>
             </div>
 
