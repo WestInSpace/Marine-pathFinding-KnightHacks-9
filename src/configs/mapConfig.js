@@ -13,7 +13,7 @@ export const MAP_CONFIG = {
 
     // Pathfinding & Grid parameters
     gridSize: 120,             // Higher resolution for tighter, more efficient paths, but laggy or slower rendering
-    samplingResolution: 15,    // Line-of-sight check resolution for smoothing
+    samplingResolution: 50,    // Line-of-sight check resolution for smoothing
     subSamplingOffset: 0.2,    // Offset factor to catch thin polygon tips without bloating obstacles
 
     // Default map viewport center
