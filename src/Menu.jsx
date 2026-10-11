@@ -7,6 +7,7 @@ export default function Menu({
     setInteractionMode, 
     hasStart, 
     hasEnd, 
+    waypoints = [],
     onClear, 
     onPlayAnimation, 
     isAnimating, 
@@ -20,7 +21,7 @@ export default function Menu({
     onImportCustomBounds,
     userPolygonCount,
 }) {
-    const canClear = hasStart || hasEnd;
+    const canClear = waypoints.length > 0;
 
     return (
         <div className="navigation-menu">
@@ -41,6 +42,14 @@ export default function Menu({
                     disabled={isAnimating}
                 >
                     {hasEnd ? 'Update End Position' : 'Select End Position'}
+                </button>
+
+                <button
+                    onClick={() => setInteractionMode('ADD_STOP')}
+                    className={`menu-btn ${interactionMode === 'ADD_STOP' ? 'active-stop' : ''}`}
+                    disabled={isAnimating}
+                >
+                    Add Stops
                 </button>
 
                 <button
@@ -113,6 +122,25 @@ export default function Menu({
                 </button>
             </div>
 
+            {/* Placed points in route order, each removable on its own */}
+            {waypoints.length > 0 && (
+                <ul className="waypoint-list">
+                    {waypoints.map((waypoint) => (
+                        <li key={waypoint.key} className="waypoint-item">
+                            {waypoint.label}
+                            <button
+                                onClick={waypoint.onRemove}
+                                disabled={isAnimating}
+                                className="waypoint-remove"
+                                aria-label={`Remove ${waypoint.label}`}
+                            >
+                                ×
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
             {/* Decides whether "no external propeller" zones block the route */}
             <label className="vessel-option">
                 <input
@@ -128,6 +156,7 @@ export default function Menu({
                 {isAnimating && <p style={{ margin: 0, color: '#d39e00', fontWeight: 'bold' }}> Boat underway along computed path...</p>}
                 {!isAnimating && interactionMode === 'SET_START' && <p className="instruction-start"> Click on the map to set your boat's starting location.</p>}
                 {!isAnimating && interactionMode === 'SET_END' && <p className="instruction-end"> Click on the map to set your destination port.</p>}
+                {!isAnimating && interactionMode === 'ADD_STOP' && <p className="instruction-stop"> Click on the map to add stops. They are visited in the order placed.</p>}
                 {!isAnimating && interactionMode === 'DRAG' && <p className="instruction-drag"> Click and drag to pan around the map freely.</p>}
                 {!isAnimating && interactionMode === 'EDIT_PROHIBITED_REGIONS' && <p className="instruction-edit"> Click areas to join them as prohibited boundaries.</p>}
             </div>
