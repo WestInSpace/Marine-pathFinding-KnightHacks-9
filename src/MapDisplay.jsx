@@ -1,6 +1,13 @@
 // src/MapDisplay.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, Polyline, useMapEvents } from 'react-leaflet';
+import {
+    MapContainer,
+    TileLayer,
+    Polyline,
+    Polygon,
+    CircleMarker,
+    useMapEvents
+} from 'react-leaflet';
 import { calculatePath } from './pathfinding.js';
 import { toAreas } from './mapData.js';
 import { fetchBoatingZones, zoneBlocksVessel } from './boatingZones.js';
@@ -14,12 +21,12 @@ import Wildlife from './Wildlife.jsx';
 import Animation from './Animation.jsx';
 import RouteTime from './RouteTime.jsx';
 import './css/MapDisplay.css';
+import customBoundsConfig from './configs/customBoundsConfig.json';
 
 // Validated once: the same areas are drawn on the map and avoided by pathfinding
 const AREAS = toAreas(PROTECTED_AREAS);
-const obstaclePolygons = AREAS.map(area => area.coordinates);
 
-function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, isAnimating }) {
+function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, setPolygonDraft, isAnimating }) {
     useMapEvents({
         click(e) {
             if (isAnimating) return;
@@ -28,6 +35,8 @@ function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, is
                 setBoatPosition(latLng);
             } else if (interactionMode === 'SET_END') {
                 setPortPosition(latLng);
+            } else if (interactionMode === 'EDIT_PROHIBITED_REGIONS') {
+                setPolygonDraft(points => [...points, latLng]);
             }
         }
     });
@@ -49,15 +58,70 @@ function MouseCoordinateTracker({ setCoords }) {
     return null;
 }
 
+
+
 export default function MapDisplay() {
     const [mouseCoords, setMouseCoords] = useState(null);
     const [interactionMode, setInteractionMode] = useState('DRAG');
 
+    // Polygon states for editing/adding user boundaries
+    const [polygonDraft, setPolygonDraft] = useState([]);
+
+    // Import saved data to persist across sessions
+    const [userPolygons, setUserPolygons] = useState(
+        customBoundsConfig.areas ?? []
+    );
+
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
+
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
+
+    const obstaclePolygons = [
+        ...AREAS.map(area => area.coordinates),
+        ...userPolygons.map(area => area.coordinates)
+    ];
+
+    const exportCustomBounds = () => {
+        const config = {
+            version: 1,
+            areas: userPolygons
+        };
+
+        const blob = new Blob([JSON.stringify(config, null, 2)], {
+            type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = 'customBoundsConfig.json';
+        link.click();
+
+        URL.revokeObjectURL(url);
+    };
+
+    const finishPolygon = () => {
+        if (polygonDraft.length < 3) {
+            window.alert('Add at least 3 points to create a polygon.');
+            return;
+        }
+
+        setUserPolygons(current => [
+            ...current,
+            {
+                id: crypto.randomUUID(),
+                name: 'User prohibited area',
+                color: '#e53935',
+                category: 'prohibited',
+                coordinates: polygonDraft
+            }
+        ]);
+
+        setPolygonDraft([]);
+    };
 
     // FWC boating restricted areas, loaded once. The map works without them if the request fails.
     const [zones, setZones] = useState([]);
@@ -111,6 +175,11 @@ export default function MapDisplay() {
                     onPlayAnimation={() => setIsAnimating(true)}
                     isAnimating={isAnimating}
                     hasPath={computedPath.length > 0 && speedKnots > 0}
+                    draftPointCount={polygonDraft.length}
+                    onFinishPolygon={finishPolygon}
+                    onCancelPolygon={() => setPolygonDraft([])}
+                    onExportCustomBounds={exportCustomBounds}
+                    userPolygonCount={userPolygons.length}
                     hasExternalPropeller={hasExternalPropeller}
                     setHasExternalPropeller={setHasExternalPropeller}
                 />
@@ -130,8 +199,10 @@ export default function MapDisplay() {
                     interactionMode={interactionMode}
                     setBoatPosition={setBoatPosition}
                     setPortPosition={setPortPosition}
+                    setPolygonDraft={setPolygonDraft}
                     isAnimating={isAnimating}
                 />
+
                 <MouseCoordinateTracker setCoords={setMouseCoords} />
 
                 <TileLayer
@@ -140,6 +211,30 @@ export default function MapDisplay() {
                 />
 
                 {/* Dataset areas (edit configs/obstaclesConfig.js to add areas) */}
+                <Areas areas={[...AREAS, ...userPolygons]} />
+
+                {polygonDraft.length > 0 && (
+                    <>
+                        {polygonDraft.length >= 2 && (
+                            <Polyline
+                                positions={polygonDraft}
+                                pathOptions={{ color: '#FF2244', weight: 4 }}
+                            />
+                        )}
+
+                        {polygonDraft.map((position, index) => (
+                            <CircleMarker
+                                key={index}
+                                center={position}
+                                radius={5}
+                                pathOptions={{
+                                    color: '#FF2244',
+                                    fillOpacity: 0
+                                }}
+                            />
+                        ))}
+                    </>
+                )}
                 <Areas areas={AREAS} />
 
                 {/* FWC boating zones: red no entry, orange restricted, yellow speed, grey unclassified */}

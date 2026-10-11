@@ -12,7 +12,11 @@ export default function Menu({
     isAnimating, 
     hasPath,
     hasExternalPropeller,
-    setHasExternalPropeller
+    setHasExternalPropeller,
+    draftPointCount,
+    onCancelPolygon,
+    onExportCustomBounds,
+    userPolygonCount,
 }) {
     const canClear = hasStart || hasEnd;
 
@@ -54,6 +58,33 @@ export default function Menu({
                     {isAnimating ? 'Navigating...' : '▶ Play Simulation'}
                 </button>
 
+                <button
+                    onClick={() => setInteractionMode('EDIT_PROHIBITED_REGIONS')}
+                    className={`menu-btn ${interactionMode === 'EDIT_PROHIBITED_REGIONS' ? 'active-editing' : ''}`}
+                    disabled={isAnimating}
+                >
+                    Edit Prohibited Zones
+                </button>
+
+                {interactionMode === 'EDIT_PROHIBITED_REGIONS' && (
+                    <>
+                        <button 
+                            onClick={onFinishPolygon}
+                            disabled={draftPointCount < 3}
+                            className=""
+                        >
+                            Finish Polygon
+                        </button>
+                        <button 
+                            onClick={onCancelPolygon}
+                            disabled={draftPointCount === 0}
+                            className=""
+                        >
+                            Cancel
+                        </button>
+                    </>
+                )}
+
                 {/* Clear Button */}
                 <button
                     onClick={onClear}
@@ -61,6 +92,14 @@ export default function Menu({
                     className="menu-btn clear-btn"
                 >
                     Clear Points
+                </button>
+
+                <button
+                    onClick={onExportCustomBounds}
+                    disabled={userPolygonCount === 0}
+                    className="menu-btn"
+                >
+                    Export custom bounds
                 </button>
             </div>
 
@@ -80,6 +119,7 @@ export default function Menu({
                 {!isAnimating && interactionMode === 'SET_START' && <p className="instruction-start"> Click on the map to set your boat's starting location.</p>}
                 {!isAnimating && interactionMode === 'SET_END' && <p className="instruction-end"> Click on the map to set your destination port.</p>}
                 {!isAnimating && interactionMode === 'DRAG' && <p className="instruction-drag"> Click and drag to pan around the map freely.</p>}
+                {!isAnimating && interactionMode === 'EDIT_PROHIBITED_REGIONS' && <p className="instruction-edit"> Click areas to join them as prohibited boundaries.</p>}
             </div>
         </div>
     );

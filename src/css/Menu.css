@@ -50,6 +50,11 @@
     color: #fff;
 }
 
+.menu-btn.active-editing {
+    background-color: #af2121;
+    color: #fff;
+}
+
 .instruction-box {
     font-size: 13px;
     color: #666;
@@ -70,6 +75,11 @@
 .instruction-drag {
     margin: 0;
     color: #6c757d;
+}
+
+.instruction-edit {
+    margin: 0;
+    color: #af2121;
 }
 
 .menu-btn.clear-btn {
