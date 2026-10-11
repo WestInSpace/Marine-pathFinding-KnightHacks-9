@@ -1,19 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import {
-	calculateRouteDistanceNm,
-	calculateTravelTimeHours,
-	formatTravelTime
-} from './routeTimeCalculations.js';
+import { formatTravelTime } from './routeTimeCalculations.js';
+import { summarizeRoute } from './speedZones.js';
 import './css/RouteTime.css';
 
-export default function RouteTime({ path = [], speedInput = '10', onSpeedInputChange }) {
+const NO_ROUTE = { path: [], limitsKnots: [] };
+
+// route: the path cut at speed zone borders, with each segment's speed limit (see splitRouteBySpeedZones)
+export default function RouteTime({ route = NO_ROUTE, speedInput = '10', onSpeedInputChange }) {
 	const [collapsed, setCollapsed] = useState(false);
 	const speedKnots = Number(speedInput);
 
-	const distanceNm = useMemo(() => calculateRouteDistanceNm(path), [path]);
-	const travelHours = useMemo(
-		() => calculateTravelTimeHours(distanceNm, speedKnots),
-		[distanceNm, speedKnots]
+	const { distanceNm, zoneDistanceNm, hours: travelHours } = useMemo(
+		() => summarizeRoute(route, speedKnots),
+		[route, speedKnots]
 	);
 
 	return (
@@ -56,7 +55,10 @@ export default function RouteTime({ path = [], speedInput = '10', onSpeedInputCh
 							<dd>{formatTravelTime(travelHours)}</dd>
 						</div>
 					</dl>
-					{path.length < 2 && (
+					{zoneDistanceNm >= 0.005 && (
+						<p className="route-time__hint">{zoneDistanceNm.toFixed(2)} nm in slow/idle speed zones</p>
+					)}
+					{route.path.length < 2 && (
 						<p className="route-time__hint">Set a start and destination to calculate the route.</p>
 					)}
 				</div>

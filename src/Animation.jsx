@@ -6,7 +6,8 @@ import { ANIMATION_CONFIG } from './configs/AnimationConfig.js';
 import { getBoatIconUrl } from './configs/boatIcons.js';
 import { calculateRouteSegmentDistancesNm } from './routeTimeCalculations.js';
 
-export default function Animation({ computedPath, isAnimating, speedKnots, onAnimationComplete }) {
+// segmentLimitsKnots: speed limit of each path segment (null where there is none), same order as the path
+export default function Animation({ computedPath, segmentLimitsKnots = [], isAnimating, speedKnots, onAnimationComplete }) {
 	const [currentPos, setCurrentPos] = useState(null);
 	const animRef = useRef(null);
 	const speedRef = useRef(speedKnots);
@@ -41,9 +42,7 @@ export default function Animation({ computedPath, isAnimating, speedKnots, onAni
 			const elapsedMs = Math.min(timestamp - previousTimestamp, ANIMATION_CONFIG.maxFrameDeltaMs);
 			previousTimestamp = timestamp;
 
-			let distanceToMoveNm = speedRef.current > 0
-				? speedRef.current * elapsedMs / 3600000 * ANIMATION_CONFIG.simulationTimeScale
-				: 0;
+			let hoursToMove = elapsedMs / 3600000 * ANIMATION_CONFIG.simulationTimeScale;
 
 			while (currentSegment < segmentDistancesNm.length) {
 				const segmentDistanceNm = segmentDistancesNm[currentSegment];
@@ -55,15 +54,20 @@ export default function Animation({ computedPath, isAnimating, speedKnots, onAni
 					continue;
 				}
 
-				if (distanceToMoveNm >= remainingDistanceNm) {
-					distanceToMoveNm -= remainingDistanceNm;
+				// Inside a speed zone the boat goes no faster than the zone allows
+				const segmentSpeedKnots = Math.min(speedRef.current, segmentLimitsKnots[currentSegment] ?? Infinity);
+				if (!(segmentSpeedKnots > 0)) break;
+
+				const hoursToFinishSegment = remainingDistanceNm / segmentSpeedKnots;
+				if (hoursToMove >= hoursToFinishSegment) {
+					hoursToMove -= hoursToFinishSegment;
 					currentSegment++;
 					segmentProgressNm = 0;
 					setCurrentPos(computedPath[currentSegment]);
 					continue;
 				}
 
-				segmentProgressNm += distanceToMoveNm;
+				segmentProgressNm += hoursToMove * segmentSpeedKnots;
 				const progress = segmentProgressNm / segmentDistanceNm;
 				const start = computedPath[currentSegment];
 				const end = computedPath[currentSegment + 1];
@@ -88,7 +92,7 @@ export default function Animation({ computedPath, isAnimating, speedKnots, onAni
 		return () => {
 			if (animRef.current) cancelAnimationFrame(animRef.current);
 		};
-	}, [isAnimating, computedPath, segmentDistancesNm]);
+	}, [isAnimating, computedPath, segmentDistancesNm, segmentLimitsKnots]);
 
 	if (!isAnimating || !currentPos) return null;
 

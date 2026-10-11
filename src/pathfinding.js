@@ -35,6 +35,25 @@ function doLineSegmentsIntersect(p1, p2, p3, p4) {
     return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
 }
 
+const METERS_PER_DEGREE = 111320;
+
+// Distance in metres from point p to segment a-b (flat-earth approximation, fine at these distances)
+function pointToSegmentMeters(p, a, b) {
+    const lonScale = Math.cos(p[0] * Math.PI / 180);
+    const ax = (a[1] - p[1]) * lonScale, ay = a[0] - p[0];
+    const dx = (b[1] - a[1]) * lonScale, dy = b[0] - a[0];
+    const lengthSquared = dx * dx + dy * dy;
+    const t = lengthSquared ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSquared)) : 0;
+    return Math.hypot(ax + t * dx, ay + t * dy) * METERS_PER_DEGREE;
+}
+
+// Whether segments p1-p2 and a-b come within the given distance of each other
+function segmentsWithinMeters(p1, p2, a, b, meters) {
+    return doLineSegmentsIntersect(p1, p2, a, b)
+        || pointToSegmentMeters(p1, a, b) <= meters || pointToSegmentMeters(p2, a, b) <= meters
+        || pointToSegmentMeters(a, p1, p2) <= meters || pointToSegmentMeters(b, p1, p2) <= meters;
+}
+
 // Smooth path, skipping waypoints wherever the direct line is not blocked
 function smoothPath(path, isLineBlocked) {
     if (path.length <= 2) return path;
@@ -95,7 +114,8 @@ function everythingBounds(start, end, polygons) {
 // Sorts polygon edges into the grid rows they pass through, so a check at one latitude only
 // looks at the few edges near it. Without this a coastline's thousands of edges are far too slow.
 // rows[y] is a list of polygons, each holding only its edges in row y (plus one row of margin).
-function buildRowIndex(polygons, minLat, minLon, cellLatSize, cellLonSize, gridSize) {
+// A larger margin makes each row also hold the edges within that distance of it (used for clearance checks).
+function buildRowIndex(polygons, minLat, minLon, cellLatSize, cellLonSize, gridSize, marginRows = 1, westMargin = cellLonSize) {
     const rows = Array.from({ length: gridSize }, () => []);
 
     for (const polygon of polygons) {
@@ -105,10 +125,10 @@ function buildRowIndex(polygons, minLat, minLon, cellLatSize, cellLonSize, gridS
             const b = polygon[(i + 1) % polygon.length];
 
             // Ray-casting looks east, so edges entirely west of the search area can never be hit
-            if (Math.max(a[1], b[1]) < minLon - cellLonSize) continue;
+            if (Math.max(a[1], b[1]) < minLon - westMargin) continue;
 
-            const firstRow = Math.max(0, Math.floor((Math.min(a[0], b[0]) - minLat) / cellLatSize) - 1);
-            const lastRow = Math.min(gridSize - 1, Math.floor((Math.max(a[0], b[0]) - minLat) / cellLatSize) + 1);
+            const firstRow = Math.max(0, Math.floor((Math.min(a[0], b[0]) - minLat) / cellLatSize) - marginRows);
+            const lastRow = Math.min(gridSize - 1, Math.floor((Math.max(a[0], b[0]) - minLat) / cellLatSize) + marginRows);
             for (let row = firstRow; row <= lastRow; row++) {
                 if (!edgesByRow.has(row)) edgesByRow.set(row, []);
                 edgesByRow.get(row).push([a, b]);
@@ -119,15 +139,17 @@ function buildRowIndex(polygons, minLat, minLon, cellLatSize, cellLonSize, gridS
     return rows;
 }
 
-export function calculatePath(startLatLon, endLatLon, obstaclesPolygons) {
-    return findPath(startLatLon, endLatLon, obstaclesPolygons, searchBounds(startLatLon, endLatLon))
+// clearance (optional): { polygons, meters } keeps the route at least that far from those polygons,
+// e.g. reefs. They are not obstacles by themselves, so list them in obstaclesPolygons as well.
+export function calculatePath(startLatLon, endLatLon, obstaclesPolygons, clearance = {}) {
+    return findPath(startLatLon, endLatLon, obstaclesPolygons, searchBounds(startLatLon, endLatLon), clearance)
         // No way through nearby (e.g. the goal is on the far side of a peninsula): search the whole map
-        ?? findPath(startLatLon, endLatLon, obstaclesPolygons, everythingBounds(startLatLon, endLatLon, obstaclesPolygons))
+        ?? findPath(startLatLon, endLatLon, obstaclesPolygons, everythingBounds(startLatLon, endLatLon, obstaclesPolygons), clearance)
         ?? [startLatLon, endLatLon];
 }
 
 // A* search on a grid covering the given bounds. Returns null when there is no route.
-function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, minLon, maxLon }) {
+function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, minLon, maxLon }, clearance) {
     const { gridSize, subSamplingOffset, samplingResolution } = MAP_CONFIG;
 
     const cellLatSize = (maxLat - minLat) / gridSize;
@@ -147,6 +169,40 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
         return false;
     }
 
+    // Clearance: points and lines closer than clearanceMeters to a clearance polygon are blocked as well
+    const clearanceMeters = clearance.polygons?.length && clearance.meters > 0 ? clearance.meters : 0;
+    const clearanceLat = clearanceMeters / METERS_PER_DEGREE;
+    const clearanceLon = clearanceLat / Math.cos(Math.max(Math.abs(minLat), Math.abs(maxLat)) * Math.PI / 180);
+    const clearanceRows = clearanceMeters
+        ? buildRowIndex(clearance.polygons, minLat, minLon, cellLatSize, cellLonSize, gridSize,
+            Math.ceil(clearanceLat / cellLatSize) + 1, cellLonSize + clearanceLon)
+        : [];
+
+    function isPointWithinClearance(lat, lon) {
+        if (!clearanceMeters) return false;
+        return clearanceRows[rowOf(lat)].some(edges =>
+            edges.some(([a, b]) => pointToSegmentMeters([lat, lon], a, b) <= clearanceMeters));
+    }
+
+    function segmentWithinClearance(p1, p2) {
+        if (!clearanceMeters) return false;
+        const lastRow = rowOf(Math.max(p1[0], p2[0]));
+        for (let row = rowOf(Math.min(p1[0], p2[0])); row <= lastRow; row++) {
+            for (const edges of clearanceRows[row]) {
+                for (const [a, b] of edges) {
+                    if (segmentsWithinMeters(p1, p2, a, b, clearanceMeters)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // A start or end placed closer than the clearance (e.g. a mooring beside a reef) could never be reached,
+    // so the clearance is waived in a small circle around it. The areas themselves stay blocked.
+    const waivedAround = [startLatLon, endLatLon].filter(([lat, lon]) => isPointWithinClearance(lat, lon));
+    const waiverRadius = clearanceMeters + 2 * Math.max(cellLatSize, cellLonSize) * METERS_PER_DEGREE;
+    const isClearanceWaived = (point) => waivedAround.some(center => pointToSegmentMeters(point, center, center) <= waiverRadius);
+
     // Check if line segment touches any area
     function lineIntersectsAnyArea(p1, p2) {
         for (let s = 1; s < samplingResolution; s++) {
@@ -156,7 +212,7 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
             if (isPointInAnyArea(sampleLat, sampleLon)) return true;
         }
 
-        return segmentCrossesAnyArea(p1, p2);
+        return segmentCrossesAnyArea(p1, p2) || segmentWithinClearance(p1, p2);
     }
 
     function toGrid(lat, lon) {
@@ -182,7 +238,8 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
     for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
             const [cellLat, cellLon] = toLatLon(x, y);
-            let isObstacle = isPointInAnyArea(cellLat, cellLon);
+            let isObstacle = isPointInAnyArea(cellLat, cellLon)
+                || (isPointWithinClearance(cellLat, cellLon) && !isClearanceWaived([cellLat, cellLon]));
 
             if (!isObstacle) {
                 const subPoints = [
@@ -221,6 +278,8 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
     // and an end placed inside an area is reached by stepping into its grid cell
     const startInsideArea = isPointInAnyArea(startLatLon[0], startLatLon[1]);
     const endInsideArea = isPointInAnyArea(endLatLon[0], endLatLon[1]);
+    // An end inside the clearance is reached the same way, since every line to it is too close
+    const endWithinClearance = waivedAround.includes(endLatLon);
 
     while (openSet.length > 0) {
         openSet.sort((a, b) => a.f - b.f);
@@ -228,7 +287,7 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
 
         const currentLatLon = nodeLatLon(current);
 
-        const reachedEnd = endInsideArea
+        const reachedEnd = (endInsideArea || endWithinClearance)
             ? (current.x === end.x && current.y === end.y)
             : !lineIntersectsAnyArea(currentLatLon, endLatLon);
 
@@ -239,6 +298,8 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
                 rawPath.unshift(nodeLatLon(curr));
                 curr = curr.parent;
             }
+            // Go straight to the real end point rather than via its grid cell, which may lie on the area itself
+            if (endWithinClearance && !endInsideArea && rawPath.length > 1) rawPath.pop();
 
             const smoothed = smoothPath(rawPath, lineIntersectsAnyArea);
 
@@ -274,8 +335,10 @@ function findPath(startLatLon, endLatLon, obstaclesPolygons, { minLat, maxLat, m
 
             // Areas thinner than a grid cell fit between two free cells, so check the step itself
             const leavingArea = startInsideArea && !current.parent;
-            const enteringArea = endInsideArea && nx === end.x && ny === end.y;
-            if (!leavingArea && !enteringArea && segmentCrossesAnyArea(currentLatLon, toLatLon(nx, ny))) continue;
+            const enteringArea = (endInsideArea || endWithinClearance) && nx === end.x && ny === end.y;
+            const nextLatLon = toLatLon(nx, ny);
+            if (!leavingArea && !enteringArea && segmentCrossesAnyArea(currentLatLon, nextLatLon)) continue;
+            if (!isClearanceWaived(currentLatLon) && !isClearanceWaived(nextLatLon) && segmentWithinClearance(currentLatLon, nextLatLon)) continue;
 
             const gScore = current.g + Math.hypot(d.x, d.y);
             const hScore = heuristic({ x: nx, y: ny }, end);

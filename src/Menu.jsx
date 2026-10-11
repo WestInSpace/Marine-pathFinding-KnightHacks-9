@@ -1,5 +1,5 @@
 // src/Menu.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import './css/Menu.css';
 
 export default function Menu({ 
@@ -14,6 +14,8 @@ export default function Menu({
     hasPath,
     hasExternalPropeller,
     setHasExternalPropeller,
+    reefClearanceInput,
+    setReefClearanceInput,
     draftPointCount,
     onFinishPolygon,
     onCancelPolygon,
@@ -21,10 +23,25 @@ export default function Menu({
     userPolygonCount,
 }) {
     const canClear = waypoints.length > 0;
+    const [collapsed, setCollapsed] = useState(false);
 
     return (
         <div className="navigation-menu">
-            <h3 className="menu-title">Navigation Controls</h3>
+            <header className="menu-header">
+                <h3 className="menu-title">Navigation Controls</h3>
+                <button
+                    className="menu-toggle"
+                    type="button"
+                    onClick={() => setCollapsed(value => !value)}
+                    aria-expanded={!collapsed}
+                    aria-label={collapsed ? 'Expand navigation controls' : 'Collapse navigation controls'}
+                >
+                    {collapsed ? '+' : '−'}
+                </button>
+            </header>
+
+            {!collapsed && (
+            <div className="menu-body">
             
             <div className="button-group">
                 <button
@@ -143,6 +160,20 @@ export default function Menu({
                 Vessel uses an external propeller
             </label>
 
+            {/* Routes stay at least this far from reefs */}
+            <label className="vessel-option">
+                Reef clearance (m)
+                <input
+                    type="number"
+                    min="0"
+                    step="10"
+                    className="vessel-option-number"
+                    value={reefClearanceInput}
+                    onChange={(e) => setReefClearanceInput(e.target.value)}
+                    disabled={isAnimating}
+                />
+            </label>
+
             <div className="instruction-box">
                 {isAnimating && <p style={{ margin: 0, color: '#d39e00', fontWeight: 'bold' }}> Boat underway along computed path...</p>}
                 {!isAnimating && interactionMode === 'SET_START' && <p className="instruction-start"> Click on the map to set your boat's starting location.</p>}
@@ -151,6 +182,8 @@ export default function Menu({
                 {!isAnimating && interactionMode === 'DRAG' && <p className="instruction-drag"> Click and drag to pan around the map freely.</p>}
                 {!isAnimating && interactionMode === 'EDIT_PROHIBITED_REGIONS' && <p className="instruction-edit"> Click areas to join them as prohibited boundaries.</p>}
             </div>
+            </div>
+            )}
         </div>
     );
 }
