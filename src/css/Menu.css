@@ -121,3 +121,46 @@
     color: #333;
     margin-bottom: 12px;
 }
+
+.menu-btn.active-stop {
+    background-color: #fd7e14;
+    color: #fff;
+}
+
+.instruction-stop {
+    margin: 0;
+    color: #c85f00;
+}
+
+.waypoint-list {
+    list-style: none;
+    margin: 0 0 12px 0;
+    padding: 0;
+    font-size: 13px;
+    color: #333;
+}
+
+.waypoint-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 0;
+}
+
+.waypoint-remove {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: #dc3545;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.waypoint-remove:disabled {
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
