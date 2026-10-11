@@ -30,7 +30,7 @@ const AREAS = toAreas(PROTECTED_AREAS);
 // Reefs also get a safety buffer in pathfinding (land and user areas do not)
 const REEF_POLYGONS = toAreas(FLORIDA_REEFS).map(reef => reef.coordinates);
 
-function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, setStops, setPolygonDraft, isAnimating }) {
+function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, setPolygonDraft, isAnimating }) {
     useMapEvents({
         click(e) {
             if (isAnimating) return;
@@ -39,8 +39,6 @@ function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, se
                 setBoatPosition(latLng);
             } else if (interactionMode === 'SET_END') {
                 setPortPosition(latLng);
-            } else if (interactionMode === 'ADD_STOP') {
-                setStops(stops => [...stops, latLng]);
             } else if (interactionMode === 'EDIT_PROHIBITED_REGIONS') {
                 setPolygonDraft(points => [...points, latLng]);
             }
@@ -78,8 +76,6 @@ export default function MapDisplay() {
 
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
-    // Stops visited in order between the start and the end
-    const [stops, setStops] = useState([]);
     const [isAnimating, setIsAnimating] = useState(false);
 
     const [speedInput, setSpeedInput] = useState('10');
@@ -186,46 +182,20 @@ export default function MapDisplay() {
         setIsAnimating(false);
         setBoatPosition(null);
         setPortPosition(null);
-        setStops([]);
     };
 
-    const removeStop = (index) => {
-        setIsAnimating(false);
-        setStops(current => current.filter((_, i) => i !== index));
-    };
-
-    // Memoized so the path is not recomputed on every mouse move.
-    // One leg per pair of consecutive points; each leg starts where the previous one ended.
-    const computedPath = useMemo(() => {
-        if (!boatPosition || !portPosition) return [];
-        const points = [boatPosition, ...stops, portPosition];
-        return points.slice(1).flatMap((point, i) =>
-            calculatePath(points[i], point, obstacles, { polygons: REEF_POLYGONS, meters: reefClearanceMeters })
-                .slice(i === 0 ? 0 : 1)
-        );
-    }, [boatPosition, portPosition, stops, obstacles, reefClearanceMeters]);
-
-    // The same path cut at speed zone borders, with a speed limit per segment, for the ETA and the animation
-    const speedZones = useMemo(
-        () => zones
-            .map(zone => ({ coordinates: zone.coordinates, limitKnots: zoneSpeedLimitKnots(zone) }))
-            .filter(zone => zone.limitKnots !== null),
-        [zones]
+    // Memoized so the path is not recomputed on every mouse move
+    const computedPath = useMemo(
+        () => (boatPosition && portPosition)
+            ? calculatePath(boatPosition, portPosition, obstacles)
+            : [],
+        [boatPosition, portPosition, obstacles]
     );
-    const route = useMemo(() => splitRouteBySpeedZones(computedPath, speedZones), [computedPath, speedZones]);
 
     // Start marker is hidden while animating (the Animation component shows the boat instead)
     const routePoints = [
         boatPosition && !isAnimating && { id: 'start', name: 'Boat Start Position', color: 'blue', position: boatPosition },
-        ...stops.map((position, index) => ({ id: `stop-${index}`, name: `Stop ${index + 1}`, color: 'orange', position })),
         portPosition && { id: 'end', name: 'Destination Port / Safe Anchor', color: 'green', position: portPosition },
-    ].filter(Boolean);
-
-    // Every placed point in route order, each with its own remove action, listed in the menu
-    const waypoints = [
-        boatPosition && { key: 'start', label: 'Start', onRemove: () => { setIsAnimating(false); setBoatPosition(null); } },
-        ...stops.map((_, index) => ({ key: `stop-${index}`, label: `Stop ${index + 1}`, onRemove: () => removeStop(index) })),
-        portPosition && { key: 'end', label: 'End', onRemove: () => { setIsAnimating(false); setPortPosition(null); } },
     ].filter(Boolean);
 
     return (
@@ -245,7 +215,6 @@ export default function MapDisplay() {
                     setInteractionMode={setInteractionMode}
                     hasStart={!!boatPosition}
                     hasEnd={!!portPosition}
-                    waypoints={waypoints}
                     onClear={handleClearPoints}
                     onPlayAnimation={() => setIsAnimating(true)}
                     isAnimating={isAnimating}
@@ -277,7 +246,6 @@ export default function MapDisplay() {
                     interactionMode={interactionMode}
                     setBoatPosition={setBoatPosition}
                     setPortPosition={setPortPosition}
-                    setStops={setStops}
                     setPolygonDraft={setPolygonDraft}
                     isAnimating={isAnimating}
                 />
