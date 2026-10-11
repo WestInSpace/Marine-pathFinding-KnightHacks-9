@@ -33,3 +33,7 @@ We also all learned more about Node.JS and JavaScript development best practices
 ## What's next for ReefRoute
 The next features we would like to add to ReefRoute would be to expand the mapping beyond our limited testing area. We would like to add more real world reefs to expand our data and our applications usability outside the Port of Miami area. For this project we focused on that spot for testing purposes and even that small area is incomplete. We would like to implement a system to automatically add land and reef markers so that no human would need to manually add and update them.  
 In the mean time a more attainable goal would be to allow the user to add their own markers and then maybe even use the data that each user enters to further map and enhance our application. This could possibly even allow more up to date maps and markers then using an automated system that relies on stored data to be updated. It would allow every user to interact with the application and contribute to it and breath life into it and allow it to adapt and grow as fast as our beautiful Earth does.
+
+## Submission categories:  
+    - Full Sail: Pathways & Perception, A Serious Games & Simulation Challenge
+    - OneEthos: Innovation for Good

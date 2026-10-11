@@ -3,3 +3,6 @@
 
 #ignore npm dependencies
 node_modules/
+
+#ignore demo video
+*.mp4
