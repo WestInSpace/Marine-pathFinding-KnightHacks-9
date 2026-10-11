@@ -79,11 +79,6 @@ export default function MapDisplay() {
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
 
-    const obstaclePolygons = [
-        ...AREAS.map(area => area.coordinates),
-        ...userPolygons.map(area => area.coordinates)
-    ];
-
     const exportCustomBounds = () => {
         const config = {
             version: 1,
@@ -134,13 +129,14 @@ export default function MapDisplay() {
         return () => { cancelled = true; };
     }, []);
 
-    // Static areas plus only the zones this vessel may not enter
+    // Static areas, the user's prohibited areas, and only the zones this vessel may not enter
     const obstacles = useMemo(
         () => [
-            ...obstaclePolygons,
+            ...AREAS.map(area => area.coordinates),
+            ...userPolygons.map(area => area.coordinates),
             ...zones.filter(zone => zoneBlocksVessel(zone, { hasExternalPropeller })).map(zone => zone.coordinates)
         ],
-        [zones, hasExternalPropeller]
+        [userPolygons, zones, hasExternalPropeller]
     );
 
     const handleClearPoints = () => {
@@ -235,7 +231,6 @@ export default function MapDisplay() {
                         ))}
                     </>
                 )}
-                <Areas areas={AREAS} />
 
                 {/* FWC boating zones: red no entry, orange restricted, yellow speed, grey unclassified */}
                 <Areas areas={zones} />

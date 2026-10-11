@@ -14,6 +14,7 @@ export default function Menu({
     hasExternalPropeller,
     setHasExternalPropeller,
     draftPointCount,
+    onFinishPolygon,
     onCancelPolygon,
     onExportCustomBounds,
     userPolygonCount,

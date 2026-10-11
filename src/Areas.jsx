@@ -19,7 +19,7 @@ export default function Areas({ areas }) {
             {area.name && (
                 <Popup>
                     {area.category ? <strong>{area.name}</strong> : area.name}
-                    {area.category && <div>Type: {ZONE_CATEGORIES[area.category].label}</div>}
+                    {area.category && <div>Type: {ZONE_CATEGORIES[area.category]?.label ?? area.category}</div>}
                     {area.restriction && <div>Restriction: {area.restriction}</div>}
                     {area.condition && <div>Applies: {area.condition}</div>}
                     {area.rule && <div>Rule: {area.rule}</div>}
