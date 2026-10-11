@@ -1,4 +1,9 @@
-##What inspired us
+
+![Image of a found path to navigate Dry Tortugas Coral Reef](./images/final/reef-nav1.png)
+
+---
+
+## What inspired us
 The Inspiration for ReefRoute is to help prevent damage to our local coral reefs by helping boaters safely navigate these unseen, but delicate ecosystems. We wanted to make a project where the idea could make an impact in the real world and help boaters better plan their routes and traverse them to their desired locations.
 
 ## What it does
