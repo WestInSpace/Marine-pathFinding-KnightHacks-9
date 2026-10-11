@@ -158,17 +158,6 @@ export default function Menu({
                 </ul>
             )}
 
-            {/* Decides whether "no external propeller" zones block the route */}
-            <label className="vessel-option">
-                <input
-                    type="checkbox"
-                    checked={hasExternalPropeller}
-                    onChange={(e) => setHasExternalPropeller(e.target.checked)}
-                    disabled={isAnimating}
-                />
-                Vessel uses an external propeller
-            </label>
-
             {/* Routes stay at least this far from reefs */}
             <label className="vessel-option">
                 Reef clearance (m)
