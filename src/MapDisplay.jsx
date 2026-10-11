@@ -20,19 +20,12 @@ import RouteTime from './RouteTime.jsx';
 import './css/MapDisplay.css';
 import customBoundsConfig from './configs/customBoundsConfig.json';
 
-/*
-//Default Icon
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-*/
-
 // Validated once: the same areas are drawn on the map and avoided by pathfinding
 const AREAS = toAreas(PROTECTED_AREAS);
-const obstaclePolygons = AREAS.map(area => area.coordinates);
+const obstaclePolygons = [
+    ...AREAS.map(area => area.coordinates),
+    ...userPolygons.map(area => area.coordinates)
+];
 
 function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, setPolygonDraft, isAnimating }) {
     useMapEvents({
@@ -71,9 +64,6 @@ function MouseCoordinateTracker({ setCoords }) {
 export default function MapDisplay() {
     const [mouseCoords, setMouseCoords] = useState(null);
     const [interactionMode, setInteractionMode] = useState('DRAG');
-<<<<<<< Updated upstream
-    
-=======
 
     // Polygon states for editing/adding user boundaries
     const [polygonDraft, setPolygonDraft] = useState([]);
@@ -83,10 +73,12 @@ export default function MapDisplay() {
         customBoundsConfig.areas ?? []
     );
 
->>>>>>> Stashed changes
     const [boatPosition, setBoatPosition] = useState(null);
     const [portPosition, setPortPosition] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
+
+    const [speedInput, setSpeedInput] = useState('10');
+    const speedKnots = Number(speedInput);
 
     const exportCustomBounds = () => {
         const config = {
@@ -149,18 +141,6 @@ export default function MapDisplay() {
 
     return (
         <div className="map-display-container">
-<<<<<<< Updated upstream
-            <Menu
-                interactionMode={interactionMode}
-                setInteractionMode={setInteractionMode}
-                hasStart={!!boatPosition}
-                hasEnd={!!portPosition}
-                onClear={handleClearPoints}
-                onPlayAnimation={() => setIsAnimating(true)}
-                isAnimating={isAnimating}
-                hasPath={computedPath.length > 0}
-            />
-=======
             <div className="map-controls-stack">
                 <Menu
                     interactionMode={interactionMode}
@@ -183,7 +163,6 @@ export default function MapDisplay() {
                     onSpeedInputChange={setSpeedInput}
                 />
             </div>
->>>>>>> Stashed changes
 
             <MapContainer
                 center={MAP_CONFIG.mapCenter}
