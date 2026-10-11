@@ -45,7 +45,8 @@ export function toMarkers(points) {
             console.warn(`Skipping marker "${point?.id ?? index}": missing or invalid coordinates`, point);
             return;
         }
-        markers.push({ id: point.id ?? index, name: point.name, color: point.color, position });
+        // Extra fields (e.g. a wildlife spot's species) pass through untouched
+        markers.push({ ...point, id: point.id ?? index, name: point.name, color: point.color, position });
     });
     return markers;
 }

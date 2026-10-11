@@ -31,7 +31,7 @@ test('toMarkers keeps valid points and skips bad ones', () => {
     ]);
     assert.deepEqual(markers, [
         { id: 'a', name: 'A', color: 'red', position: [25.7, -80.1] },
-        { id: 'b', name: undefined, color: undefined, position: [25.8, -80.2] },
+        { id: 'b', lat: 25.8, lng: -80.2, name: undefined, color: undefined, position: [25.8, -80.2] },
     ]);
     assert.deepEqual(toMarkers(undefined), []);
 });

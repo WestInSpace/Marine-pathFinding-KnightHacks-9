@@ -6,9 +6,11 @@ import { toAreas } from './mapData.js';
 import { fetchBoatingZones, zoneBlocksVessel } from './boatingZones.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
+import { WILDLIFE_SPOTS } from './configs/wildlifeConfig.js';
 import Menu from './Menu.jsx';
 import Areas from './Areas.jsx';
 import Markers from './Markers.jsx';
+import Wildlife from './Wildlife.jsx';
 import Animation from './Animation.jsx';
 import RouteTime from './RouteTime.jsx';
 import './css/MapDisplay.css';
@@ -142,6 +144,9 @@ export default function MapDisplay() {
 
                 {/* FWC boating zones: red no entry, orange restricted, yellow speed, grey unclassified */}
                 <Areas areas={zones} />
+
+                {/* Protected wildlife icons, hidden until zoomed in (edit configs/wildlifeConfig.js to add spots) */}
+                <Wildlife spots={WILDLIFE_SPOTS} />
 
                 {computedPath.length > 0 && (
                     <Polyline
