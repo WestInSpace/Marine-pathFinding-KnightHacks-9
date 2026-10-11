@@ -28,7 +28,8 @@ export function toAreas(areas) {
         if (coordinates.length < raw.length) {
             console.warn(`Area "${label}": dropped ${raw.length - coordinates.length} invalid coordinate(s)`, area);
         }
-        result.push({ id: label, name: area.name, color: area.color, coordinates });
+        // Extra fields (e.g. a boating zone's regulation details) pass through untouched
+        result.push({ ...area, id: label, name: area.name, color: area.color, coordinates });
     });
     return result;
 }

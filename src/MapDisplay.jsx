@@ -1,8 +1,9 @@
 // src/MapDisplay.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, useMapEvents } from 'react-leaflet';
 import { calculatePath } from './pathfinding.js';
 import { toAreas } from './mapData.js';
+import { fetchBoatingZones, zoneBlocksVessel } from './boatingZones.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
 import Menu from './Menu.jsx';
@@ -56,6 +57,26 @@ export default function MapDisplay() {
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
 
+    // FWC boating restricted areas, loaded once. The map works without them if the request fails.
+    const [zones, setZones] = useState([]);
+    const [hasExternalPropeller, setHasExternalPropeller] = useState(true);
+    useEffect(() => {
+        let cancelled = false;
+        fetchBoatingZones()
+            .then(rawZones => { if (!cancelled) setZones(toAreas(rawZones)); })
+            .catch(error => console.warn('Boating zones unavailable, continuing without them', error));
+        return () => { cancelled = true; };
+    }, []);
+
+    // Static areas plus only the zones this vessel may not enter
+    const obstacles = useMemo(
+        () => [
+            ...obstaclePolygons,
+            ...zones.filter(zone => zoneBlocksVessel(zone, { hasExternalPropeller })).map(zone => zone.coordinates)
+        ],
+        [zones, hasExternalPropeller]
+    );
+
     const handleClearPoints = () => {
         setIsAnimating(false);
         setBoatPosition(null);
@@ -65,9 +86,9 @@ export default function MapDisplay() {
     // Memoized so the path is not recomputed on every mouse move
     const computedPath = useMemo(
         () => (boatPosition && portPosition)
-            ? calculatePath(boatPosition, portPosition, obstaclePolygons)
+            ? calculatePath(boatPosition, portPosition, obstacles)
             : [],
-        [boatPosition, portPosition]
+        [boatPosition, portPosition, obstacles]
     );
 
     // Start marker is hidden while animating (the Animation component shows the boat instead)
@@ -88,6 +109,8 @@ export default function MapDisplay() {
                     onPlayAnimation={() => setIsAnimating(true)}
                     isAnimating={isAnimating}
                     hasPath={computedPath.length > 0 && speedKnots > 0}
+                    hasExternalPropeller={hasExternalPropeller}
+                    setHasExternalPropeller={setHasExternalPropeller}
                 />
                 <RouteTime
                     path={computedPath}
@@ -116,6 +139,9 @@ export default function MapDisplay() {
 
                 {/* Dataset areas (edit configs/obstaclesConfig.js to add areas) */}
                 <Areas areas={AREAS} />
+
+                {/* FWC boating zones: red no entry, orange restricted, yellow speed, grey unclassified */}
+                <Areas areas={zones} />
 
                 {computedPath.length > 0 && (
                     <Polyline

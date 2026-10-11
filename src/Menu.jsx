@@ -10,7 +10,9 @@ export default function Menu({
     onClear, 
     onPlayAnimation, 
     isAnimating, 
-    hasPath 
+    hasPath,
+    hasExternalPropeller,
+    setHasExternalPropeller
 }) {
     const canClear = hasStart || hasEnd;
 
@@ -61,6 +63,17 @@ export default function Menu({
                     Clear Points
                 </button>
             </div>
+
+            {/* Decides whether "no external propeller" zones block the route */}
+            <label className="vessel-option">
+                <input
+                    type="checkbox"
+                    checked={hasExternalPropeller}
+                    onChange={(e) => setHasExternalPropeller(e.target.checked)}
+                    disabled={isAnimating}
+                />
+                Vessel uses an external propeller
+            </label>
 
             <div className="instruction-box">
                 {isAnimating && <p style={{ margin: 0, color: '#d39e00', fontWeight: 'bold' }}> Boat underway along computed path...</p>}

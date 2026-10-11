@@ -102,3 +102,12 @@
 .menu-btn.play-btn:hover:not(:disabled) {
     background-color: #ffb300;
 }
+
+.vessel-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 12px;
+}
