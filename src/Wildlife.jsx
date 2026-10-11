@@ -29,12 +29,18 @@ export default function Wildlife({ spots }) {
 
     return markers.map((spot) => {
         const species = WILDLIFE_SPECIES[spot.species];
+        const video = spot.video ?? species.video;
         return (
             <Marker key={spot.id} position={spot.position} icon={speciesIcon(spot.species)} opacity={0.9} alt={species.label}>
                 <Popup>
                     <strong>{species.label}</strong>
                     {spot.name && <div>{spot.name}</div>}
                     <div>{species.note}</div>
+                    {video && (
+                        <a href={video} target="_blank" rel="noopener noreferrer">
+                            {spot.video ? 'Watch a video from this area' : 'Watch a sample video from Florida'}
+                        </a>
+                    )}
                 </Popup>
             </Marker>
         );
