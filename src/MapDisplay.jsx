@@ -63,9 +63,12 @@ export default function MapDisplay() {
     };
 
     // Memoized so the path is not recomputed on every mouse move
-    const computedPath = useMemo(() => (boatPosition && portPosition)
-        ? calculatePath(boatPosition, portPosition, obstaclePolygons)
-        : [], [boatPosition, portPosition]);
+    const computedPath = useMemo(
+        () => (boatPosition && portPosition)
+            ? calculatePath(boatPosition, portPosition, obstaclePolygons)
+            : [],
+        [boatPosition, portPosition]
+    );
 
     // Start marker is hidden while animating (the Animation component shows the boat instead)
     const routePoints = [
