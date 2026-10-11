@@ -2,6 +2,8 @@
 // FWC Boating Restricted Areas (Florida Administrative Code 68D-24), fetched live from FWC's public map service.
 // Data processing only (no React/Leaflet).
 
+import { SPEED_ZONE_LIMITS_KNOTS } from './configs/speedZonesConfig.js';
+
 const SOURCE = 'https://gis.myfwc.com/hosting/rest/services/Open_Data/State_Boating_Safety_Zones_Florida/MapServer/10';
 const PAGE_SIZE = 1000;
 
@@ -28,6 +30,18 @@ export function classifyRestriction(restriction) {
 export function zoneBlocksVessel(zone, { hasExternalPropeller }) {
     if (zone.category === 'noEntry') return true;
     return zone.category === 'restricted' && /propell|no motor/i.test(zone.restriction) && hasExternalPropeller;
+}
+
+const KNOTS_PER_MPH = 0.868976;
+
+// Speed cap inside a speed zone in knots, or null when the zone does not slow the vessel.
+// Conditional zones (flooding, weekends, vessel length...) depend on things we do not know, so they are not applied.
+export function zoneSpeedLimitKnots(zone) {
+    if (zone.category !== 'speed' || /conditional/i.test(zone.restriction)) return null;
+    if (/idle speed/i.test(zone.restriction)) return SPEED_ZONE_LIMITS_KNOTS.idle;
+    if (/slow speed/i.test(zone.restriction)) return SPEED_ZONE_LIMITS_KNOTS.slow;
+    const maxMph = /max speed (\d+(?:\.\d+)?) mph/i.exec(zone.restriction);
+    return maxMph ? Number(maxMph[1]) * KNOTS_PER_MPH : null;
 }
 
 const clean = (value) => String(value ?? '').trim();

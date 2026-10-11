@@ -10,9 +10,11 @@ import {
 } from 'react-leaflet';
 import { calculatePath } from './pathfinding.js';
 import { toAreas } from './mapData.js';
-import { fetchBoatingZones, zoneBlocksVessel } from './boatingZones.js';
+import { fetchBoatingZones, zoneBlocksVessel, zoneSpeedLimitKnots } from './boatingZones.js';
+import { splitRouteBySpeedZones } from './speedZones.js';
 import { MAP_CONFIG } from './configs/mapConfig.js';
 import { PROTECTED_AREAS } from './configs/obstaclesConfig.js';
+import { FLORIDA_REEFS } from './configs/reefsConfig.js';
 import { WILDLIFE_SPOTS } from './configs/wildlifeConfig.js';
 import Menu from './Menu.jsx';
 import Areas from './Areas.jsx';
@@ -25,6 +27,8 @@ import customBoundsConfig from './configs/customBoundsConfig.json';
 
 // Validated once: the same areas are drawn on the map and avoided by pathfinding
 const AREAS = toAreas(PROTECTED_AREAS);
+// Reefs also get a safety buffer in pathfinding (land and user areas do not)
+const REEF_POLYGONS = toAreas(FLORIDA_REEFS).map(reef => reef.coordinates);
 
 function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, setStops, setPolygonDraft, isAnimating }) {
     useMapEvents({
@@ -80,6 +84,10 @@ export default function MapDisplay() {
 
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
+
+    const [reefClearanceInput, setReefClearanceInput] = useState(String(MAP_CONFIG.reefClearanceMeters));
+    // Empty or invalid input means no buffer
+    const reefClearanceMeters = Math.max(0, Number(reefClearanceInput)) || 0;
 
     // Reference for the hidden file input element
     const fileInputRef = useRef(null);
@@ -192,9 +200,19 @@ export default function MapDisplay() {
         if (!boatPosition || !portPosition) return [];
         const points = [boatPosition, ...stops, portPosition];
         return points.slice(1).flatMap((point, i) =>
-            calculatePath(points[i], point, obstacles).slice(i === 0 ? 0 : 1)
+            calculatePath(points[i], point, obstacles, { polygons: REEF_POLYGONS, meters: reefClearanceMeters })
+                .slice(i === 0 ? 0 : 1)
         );
-    }, [boatPosition, portPosition, stops, obstacles]);
+    }, [boatPosition, portPosition, stops, obstacles, reefClearanceMeters]);
+
+    // The same path cut at speed zone borders, with a speed limit per segment, for the ETA and the animation
+    const speedZones = useMemo(
+        () => zones
+            .map(zone => ({ coordinates: zone.coordinates, limitKnots: zoneSpeedLimitKnots(zone) }))
+            .filter(zone => zone.limitKnots !== null),
+        [zones]
+    );
+    const route = useMemo(() => splitRouteBySpeedZones(computedPath, speedZones), [computedPath, speedZones]);
 
     // Start marker is hidden while animating (the Animation component shows the boat instead)
     const routePoints = [
@@ -240,9 +258,11 @@ export default function MapDisplay() {
                     userPolygonCount={userPolygons.length}
                     hasExternalPropeller={hasExternalPropeller}
                     setHasExternalPropeller={setHasExternalPropeller}
+                    reefClearanceInput={reefClearanceInput}
+                    setReefClearanceInput={setReefClearanceInput}
                 />
                 <RouteTime
-                    path={computedPath}
+                    route={route}
                     speedInput={speedInput}
                     onSpeedInputChange={setSpeedInput}
                 />
@@ -313,7 +333,8 @@ export default function MapDisplay() {
 
                 {/* Animated boat (shown only while animating) */}
                 <Animation
-                    computedPath={computedPath}
+                    computedPath={route.path}
+                    segmentLimitsKnots={route.limitsKnots}
                     isAnimating={isAnimating}
                     speedKnots={speedKnots}
                     onAnimationComplete={() => setIsAnimating(false)}

@@ -1,7 +1,8 @@
 // Run with: npm test
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyRestriction, zoneBlocksVessel, toZoneAreas, fetchBoatingZones } from './boatingZones.js';
+import { classifyRestriction, zoneBlocksVessel, zoneSpeedLimitKnots, toZoneAreas, fetchBoatingZones } from './boatingZones.js';
+import { SPEED_ZONE_LIMITS_KNOTS } from './configs/speedZonesConfig.js';
 
 test('classifyRestriction uses the dataset wording and does not guess', () => {
     // Values taken from the live FWC layer
@@ -25,6 +26,16 @@ test('zoneBlocksVessel only blocks no-entry zones and restrictions that apply to
     assert.equal(zoneBlocksVessel(anchoring, { hasExternalPropeller: true }), false);
     assert.equal(zoneBlocksVessel({ category: 'speed', restriction: 'Idle Speed No Wake' }, { hasExternalPropeller: true }), false);
     assert.equal(zoneBlocksVessel({ category: 'unclassified', restriction: 'River Closure' }, { hasExternalPropeller: true }), false);
+});
+
+test('zoneSpeedLimitKnots caps only unconditional speed zones', () => {
+    const speed = (restriction) => zoneSpeedLimitKnots({ category: 'speed', restriction });
+    assert.equal(speed('Idle Speed No Wake'), SPEED_ZONE_LIMITS_KNOTS.idle);
+    assert.equal(speed('Slow Speed Minimum Wake'), SPEED_ZONE_LIMITS_KNOTS.slow);
+    assert.ok(Math.abs(speed('Max Speed 30 MPH / Max Wake 15 Inches / Max Sound 80 dBA') - 26.07) < 0.01);
+    assert.equal(speed('Slow Speed Minimum Wake - Conditional'), null);
+    assert.equal(zoneSpeedLimitKnots({ category: 'noEntry', restriction: 'No Entry' }), null);
+    assert.equal(zoneSpeedLimitKnots({ category: 'unclassified', restriction: 'Idle Speed No Wake / River Closure - Conditional' }), null);
 });
 
 const ring = [[-80.2, 25.7], [-80.1, 25.7], [-80.1, 25.8], [-80.2, 25.7]];

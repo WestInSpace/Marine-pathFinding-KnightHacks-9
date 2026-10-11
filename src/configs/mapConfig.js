@@ -16,6 +16,9 @@ export const MAP_CONFIG = {
     samplingResolution: 50,    // Line-of-sight check resolution for smoothing
     subSamplingOffset: 0.2,    // Offset factor to catch thin polygon tips without bloating obstacles
 
+    // Default distance routes keep from reefs, in metres (editable in the menu)
+    reefClearanceMeters: 50,
+
     // Default map viewport center
     mapCenter: [25.7617, -80.1918],
     defaultZoom: 12,
