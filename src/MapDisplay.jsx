@@ -22,10 +22,6 @@ import customBoundsConfig from './configs/customBoundsConfig.json';
 
 // Validated once: the same areas are drawn on the map and avoided by pathfinding
 const AREAS = toAreas(PROTECTED_AREAS);
-const obstaclePolygons = [
-    ...AREAS.map(area => area.coordinates),
-    ...userPolygons.map(area => area.coordinates)
-];
 
 function MapClickHandler({ interactionMode, setBoatPosition, setPortPosition, setPolygonDraft, isAnimating }) {
     useMapEvents({
@@ -79,6 +75,11 @@ export default function MapDisplay() {
 
     const [speedInput, setSpeedInput] = useState('10');
     const speedKnots = Number(speedInput);
+
+    const obstaclePolygons = [
+        ...AREAS.map(area => area.coordinates),
+        ...userPolygons.map(area => area.coordinates)
+    ];
 
     const exportCustomBounds = () => {
         const config = {
