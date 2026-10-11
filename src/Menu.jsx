@@ -71,14 +71,14 @@ export default function Menu({
                         <button 
                             onClick={onFinishPolygon}
                             disabled={draftPointCount < 3}
-                            className=""
+                            className="menu-btn"
                         >
                             Finish Polygon
                         </button>
                         <button 
                             onClick={onCancelPolygon}
                             disabled={draftPointCount === 0}
-                            className=""
+                            className="menu-btn"
                         >
                             Cancel
                         </button>
