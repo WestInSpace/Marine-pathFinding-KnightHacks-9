@@ -1,6 +1,8 @@
 
 ![Image of a found path to navigate Dry Tortugas Coral Reef](./images/final/reef-nav1.png)
 
+[See our video demo here](https://youtu.be/7aRiclwmC4A)
+
 ---
 
 ## What inspired us
@@ -33,6 +35,17 @@ We also all learned more about Node.JS and JavaScript development best practices
 ## What's next for ReefRoute
 The next features we would like to add to ReefRoute would be to add full deployment that would allow users to accsses it online. We would alos like to expand our map data to be able to assist with boat navigation on a global scale instead of just for Florida.  
 We would also like to allow users to uploal information to a ReefRoute server where the update information could be considered to be added to tha application. We could then add the user data to the set to further map and enhance our application. This could possibly even allow more up to date maps and markers then using an automated system that relies on stored data to be updated. It would allow every user to interact with the application and contribute to it and breath life into it allowing it to adapt and grow as fast as our beautiful Earth does.
+
+## Tech Stack
+- JavaScript
+- Node.js
+- Google Gemini
+- VS-Code
+- React-leaflet
+- React, Vite
+- Docker
+- Git
+- GitHub
 
 ## Submission categories:  
     - Full Sail: Pathways & Perception, A Serious Games & Simulation Challenge
