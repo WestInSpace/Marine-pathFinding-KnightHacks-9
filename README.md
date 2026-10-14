@@ -42,7 +42,8 @@ We would also like to allow users to uploal information to a ReefRoute server wh
 - Google Gemini
 - VS-Code
 - React-leaflet
-- React, Vite
+- React
+- Vite
 - Docker
 - Git
 - GitHub
